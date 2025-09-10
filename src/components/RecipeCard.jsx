@@ -6,7 +6,6 @@ export default function RecipeCard({ recipe, onOpen, idx = 0, noAnim = false }) 
   const [imgLoaded, setImgLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // синхронизация флага "в избранном"
   useEffect(() => {
     setSaved(isFavorite(recipe.id));
   }, [recipe.id]);

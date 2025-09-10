@@ -33,7 +33,7 @@ export function FavoritesProvider({ children }) {
       isFav: (id) => ids.includes(id),
       toggleFav: (id, recipe) => (ids.includes(id) ? remove(id) : add(recipe)),
       getAll: () => ids.map((id) => store[id]).filter(Boolean),
-      hidden: new Set(), // совместимость
+      hidden: new Set(), 
     }),
     [ids, store]
   );

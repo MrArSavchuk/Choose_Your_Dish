@@ -1,6 +1,3 @@
-// src/components/SkeletonCard.jsx
-import React from "react";
-
 export default function SkeletonCard() {
   return (
     <div className="card animate-pulse">

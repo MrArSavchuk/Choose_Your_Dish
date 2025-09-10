@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import Pagination from "../components/Pagination.jsx";
@@ -8,8 +7,6 @@ import SkeletonCard from "../components/SkeletonCard.jsx";
 import useDebouncedValue from "../hooks/useDebouncedValue.js";
 import { randomFive, showcaseSamples } from "../services/provider.themealdb.js";
 import { runtimeCache } from "../services/runtimeCache.js";
-
-/* ---------------- helpers ---------------- */
 
 function mapMeal(m) {
   const ings = [];
@@ -74,7 +71,6 @@ export default function Home() {
 
   const [open, setOpen] = useState(null);
 
-  // filters
   const [q, setQ] = useState("");
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
@@ -82,7 +78,6 @@ export default function Home() {
   const dInc = useDebouncedValue(include, 500);
   const dExc = useDebouncedValue(exclude, 500);
 
-  // pagination: 10 per page
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const total = Math.max(1, Math.ceil(recipes.length / pageSize));
@@ -91,7 +86,6 @@ export default function Home() {
     return recipes.slice(start, start + pageSize);
   }, [recipes, page]);
 
-  // initial discover + showcase
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -118,7 +112,6 @@ export default function Home() {
     };
   }, []);
 
-  // auto search
   useEffect(() => {
     if (!dq && !dInc && !dExc) {
       setRecipes([]);
@@ -126,10 +119,8 @@ export default function Home() {
       return;
     }
     runSearch(dq, dInc, dExc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dq, dInc, dExc]);
 
-  // SMART SEARCH: name (phrase + words) + ingredients, ensure >=10
   async function runSearch(qv = q, incv = include, excv = exclude) {
     setLoading(true);
     setError("");
@@ -150,24 +141,20 @@ export default function Home() {
         ...words.slice(0, 3), // не больше 3 слов
       ];
 
-      // 1) собираем пул из name-поиска
       const nameChunks = await Promise.all(
         nameTerms.map((t) => fetchByName(t))
       );
       let pool = nameChunks.flat();
 
-      // 2) добор по каждому include ингредиенту
       const extraChunks = await Promise.all(
         includeTokens.map((t) => fetchByIngredient(t, 18))
       );
       pool = pool.concat(extraChunks.flat());
 
-      // 3) объединяем по id
       const byId = new Map();
       for (const r of pool) byId.set(r.id, r);
       let list = Array.from(byId.values());
 
-      // 4) exclude-фильтр
       if (excludeTokens.length) {
         list = list.filter((r) => {
           const ingStr = (r.ingredients || []).join(" ").toLowerCase();
@@ -175,7 +162,6 @@ export default function Home() {
         });
       }
 
-      // 5) ранг по совпадениям include
       const scored = list.map((r) => {
         const ing = (r.ingredients || []).join(" ").toLowerCase();
         const score = includeTokens.reduce(
@@ -186,7 +172,6 @@ export default function Home() {
       });
       scored.sort((a, b) => b.score - a.score);
 
-      // 6) сохраняем (без усечения; страницу показываем по 10)
       setRecipes(scored.map((s) => s.r));
     } catch {
       setError("Search failed. Please retry.");
@@ -299,7 +284,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Results — сразу под фильтрами */}
         {loading && (
           <div className="grid xs:grid-cols-2 md:grid-cols-3 gap-5 mt-8">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -322,7 +306,6 @@ export default function Home() {
           </>
         )}
 
-        {/* Popular categories — показываем ТОЛЬКО если нет результатов */}
         {!loading && recipes.length === 0 && !!samples.length && (
           <>
             <h3 className="mt-8 mb-3 font-semibold">Popular categories</h3>
@@ -339,7 +322,6 @@ export default function Home() {
           </>
         )}
 
-        {/* Ничего не найдено */}
         {!loading && recipes.length === 0 && (dq || dInc || dExc) && (
           <div className="card mt-6">
             <p className="mb-3">

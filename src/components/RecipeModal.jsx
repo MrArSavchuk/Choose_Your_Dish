@@ -1,4 +1,3 @@
-// src/components/RecipeModal.jsx
 import React, { useEffect } from "react";
 import { X, Star, Heart } from "lucide-react";
 

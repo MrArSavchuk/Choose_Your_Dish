@@ -1,5 +1,3 @@
-// src/services/favorites.js
-// Единый сервис для избранного (localStorage)
 const KEY = "cyd:favorites";
 
 export function loadFavorites() {
@@ -28,7 +26,6 @@ export function isFavorite(id) {
   return list.some((r) => (r.id || r) === id);
 }
 
-// Минимальный набор полей на случай, если откроем избранное без сети
 function minimalRecipe(recipe) {
   return {
     id: recipe.id,
@@ -55,7 +52,6 @@ export function toggleFavorite(recipe) {
   }
   saveFavorites(list);
 
-  // Сообщаем приложению, что избранное обновилось
   try {
     window.dispatchEvent(new CustomEvent("cyd:favorites-changed"));
   } catch {}

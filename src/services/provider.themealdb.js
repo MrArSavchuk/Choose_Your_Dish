@@ -1,8 +1,6 @@
-// src/services/provider.themealdb.js
 const API = "https://www.themealdb.com/api/json/v1/1";
 const HOUR = 60 * 60 * 1000;
 
-/* ---- tiny cache ---- */
 function cacheGet(k){try{const r=localStorage.getItem(k);if(!r)return null;const{t,v}=JSON.parse(r);return Date.now()-t>HOUR?null:v}catch{return null}}
 function cacheSet(k,v){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),v}))}catch{}}
 async function safeJSON(url){try{const r=await fetch(url);if(!r.ok)return null;return await r.json()}catch{return null}}
@@ -25,13 +23,11 @@ function map(meal){
   };
 }
 
-/* ---------- Random 1 ---------- */
 export async function randomOne(){
   const rnd=await safeJSON(`${API}/random.php`);
   const meal=rnd?.meals?.[0];
   if(meal) return map(meal);
 
-  // запасной вариант: возьмём что-то из десертов
   const list=await safeJSON(`${API}/filter.php?c=Dessert`);
   const items=list?.meals||[];
   if(!items.length) return null;
@@ -41,7 +37,6 @@ export async function randomOne(){
   return m?map(m):null;
 }
 
-/* ---------- Random 5 (fresh: без кэша) ---------- */
 export async function randomFive(fresh=false){
   const KEY="tmdb:random5";
   if(!fresh){
@@ -66,7 +61,6 @@ export async function randomFive(fresh=false){
   return out;
 }
 
-/* ---------- Search (оставил кэш) ---------- */
 export async function searchTheMealDB({q="",include=[],exclude=[]}){
   const key=`tmdb:search:${q}|${include.join(",")}|${exclude.join(",")}`;
   const cached=cacheGet(key); if(cached) return cached;
@@ -91,7 +85,6 @@ export async function searchTheMealDB({q="",include=[],exclude=[]}){
   const out=meals.map(map); cacheSet(key,out); return out;
 }
 
-/* ---------- Showcase (по 1 рецепту на каждую группу) ---------- */
 const SHOWCASE = [
   { key:"salad",      hintQ:["salad"],             cat:null },
   { key:"meat",       hintQ:[],                    cat:["Beef","Chicken","Pork","Lamb"] },

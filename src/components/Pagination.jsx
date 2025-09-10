@@ -1,6 +1,3 @@
-// src/components/Pagination.jsx
-import React from "react";
-
 export default function Pagination({ page, total, onChange }) {
   if (total <= 1) return null;
   const prev = () => onChange(Math.max(1, page - 1));

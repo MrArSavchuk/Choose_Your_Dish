@@ -6,7 +6,6 @@ import SkeletonCard from "../components/SkeletonCard.jsx";
 import { loadFavorites } from "../services/favorites.js";
 import { runtimeCache } from "../services/runtimeCache.js";
 
-// Маппер ответа TheMealDB -> наш формат
 function mapMeal(m) {
   const ings = [];
   for (let i = 1; i <= 20; i++) {
@@ -37,7 +36,6 @@ export default function Favorites() {
   const [open, setOpen] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Блок "You might like" из кэша ранних загрузок (не перезапрашиваем между страницами)
   const suggestion = runtimeCache.discover?.[0] || runtimeCache.showcase?.[0] || null;
 
   async function hydrateFavorites() {
@@ -46,7 +44,7 @@ export default function Favorites() {
       const raw = loadFavorites();
       const result = await Promise.all(
         raw.map(async r => {
-          if (r.title && r.image) return r;         // уже нормализовано
+          if (r.title && r.image) return r;         
           const full = await fetchMealById(r.id || r);
           return full || null;
         })
@@ -70,7 +68,6 @@ export default function Favorites() {
       <main className="mx-auto max-w-6xl px-4 pb-10" aria-live="polite">
         <h1 className="mt-20 mb-4 font-semibold text-lg">Favorites</h1>
 
-        {/* You might like */}
         {suggestion && (
           <>
             <h2 className="mb-3 font-semibold">You might like</h2>

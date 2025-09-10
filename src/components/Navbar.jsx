@@ -1,5 +1,4 @@
-// src/components/Navbar.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 const Sun = () => (
@@ -17,7 +16,6 @@ export default function Navbar() {
   const loc = useLocation();
   const [dark, setDark] = useState(false);
 
-  // read persisted theme
   useEffect(() => {
     const saved = localStorage.getItem("cyd:theme");
     const isDark = saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;

@@ -1,5 +1,3 @@
-// src/App.jsx
-import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Favorites from "./pages/Favorites.jsx";
