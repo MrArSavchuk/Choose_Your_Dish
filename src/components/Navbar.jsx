@@ -35,7 +35,7 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div className="nav-inner">
-        <NavLink to="/" className="brand">Choose_Your_Dish</NavLink>
+        <NavLink to="/" className="brand">Choose Your Dish</NavLink>
 
         <nav className="nav-spacer" aria-label="Main">
           <NavLink
