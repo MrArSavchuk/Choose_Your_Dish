@@ -1,0 +1,381 @@
+/* ===============================
+   Choose Your Dish — global styles
+   =============================== */
+
+/* ---------- Color system ---------- */
+:root{
+  /* Base palette */
+  --blush-50:#fff6f7;
+  --blush-100:#ffe9ed;
+  --blush-200:#ffd4dc;
+  --blush-300:#ffb5c3;
+  --blush-400:#ff9db1;
+  --blush-500:#ff7f9d;
+
+  --mint-50:#f1fff7;
+  --mint-200:#ccf7e3;
+  --mint-400:#88ecc3;
+  --mint-500:#5ed9ac;
+
+  --indigo-100:#e5e9ff;
+  --indigo-400:#8591ff;
+  --indigo-600:#4b57cc;
+
+  /* Light theme */
+  --bg: linear-gradient(180deg,#fff7f7 0%,#fff0f7 60%,#fff6ff 100%);
+  --nav-bg: rgba(255,255,255,.85);
+  --surface-1:#ffffff;
+  --surface-2:#f6f4f8;
+  --border: rgba(10,18,32,.08);
+
+  --text:#182033;
+  --text-muted:#687086;
+
+  --shadow: 0 10px 24px rgba(10,18,32,.08);
+  --shadow-soft: 0 6px 14px rgba(10,18,32,.06);
+}
+
+:root.dark{
+  --bg: linear-gradient(180deg,#0b1321 0%,#0f1726 60%,#10192a 100%);
+  --nav-bg: rgba(16,25,42,.8);
+  --surface-1:#141e2e;
+  --surface-2:#10192a;
+  --border: rgba(255,255,255,.08);
+
+  --text:#e9eef9;
+  --text-muted:#aab3c7;
+
+  --shadow: 0 10px 24px rgba(0,0,0,.35);
+  --shadow-soft: 0 6px 14px rgba(0,0,0,.25);
+}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+
+/* Helpers used in JSX */
+.bg-app{background:var(--bg)}
+.text-app{color:var(--text)}
+.text-muted{color:var(--text-muted)}
+
+/* ---------- Navbar ---------- */
+.navbar{
+  position:fixed; inset-inline:0; top:0; z-index:40;
+  background:var(--nav-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+  border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow-soft);
+}
+.nav-inner{
+  max-width:72rem; margin-inline:auto;
+  padding:12px 16px;
+  display:flex; align-items:center; gap:16px;
+}
+.brand{
+  font-weight:700; letter-spacing:.2px;
+  color:var(--text); text-decoration:none;
+}
+.nav-spacer{flex:1}
+.nav-link{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:10px;
+  color:var(--text-muted); text-decoration:none;
+  transition:color .15s ease, background-color .15s ease;
+}
+.nav-link:hover{ color:var(--text) }
+.nav-link[aria-current="page"]{
+  color:var(--text);
+  background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--border);
+}
+
+/* Theme switcher (pill) */
+.theme-toggle{
+  position:relative; width:54px; height:28px; border-radius:999px;
+  background:var(--surface-2); border:1px solid var(--border);
+  cursor:pointer; flex-shrink:0;
+}
+.theme-toggle .thumb{
+  position:absolute; top:2px; left:2px; width:24px; height:24px;
+  border-radius:50%; background:var(--surface-1);
+  box-shadow:var(--shadow-soft);
+  display:grid; place-items:center;
+  transition: transform .18s ease;
+}
+.theme-toggle.is-dark .thumb{ transform: translateX(26px) }
+.theme-toggle svg{ width:14px; height:14px; color:var(--text-muted) }
+
+/* Provide top offset for fixed navbar */
+main{ padding-top:72px }
+
+/* ---------- Cards ---------- */
+.card{
+  background:var(--surface-1);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px;
+  box-shadow:var(--shadow-soft);
+}
+.card:hover{ box-shadow:var(--shadow) }
+
+.card h3{ margin:6px 0 0; font-size:0.98rem; line-height:1.3 }
+
+/* Карточка как колонка: контент + действия у низа */
+.card-col{ display:flex; flex-direction:column; height:100% }
+.card-spacer{ flex:1 1 auto }
+
+.card-img-wrap{
+  position:relative;
+  min-height:11rem;
+  border-radius:12px;
+  overflow:hidden;
+}
+.card-img-wrap img{
+  width:100%;
+  height:11rem;
+  object-fit:cover;
+  border-radius:12px;
+}
+
+/* Ряд действий под картинкой: две кнопки одинаковой ширины/высоты */
+.card-actions{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+.card-actions .btn-fav,
+.card-actions .btn-ghost{
+  flex:1 1 0;                 /* одинаковая ширина */
+  height:34px;                /* одинаковая высота */
+  padding:0 12px;             /* одинаковые поля */
+  font-size:.85rem;           /* одинаковый размер шрифта */
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Save button */
+.btn-fav{
+  display:inline-flex; align-items:center; gap:6px;
+  height:28px; padding:0 10px; font-size:.8rem;
+  border-radius:10px; border:1px solid var(--border);
+  background:var(--surface-1);
+  color:var(--text);
+  transition:transform .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.btn-fav:hover{ transform:translateY(-1px); box-shadow:var(--shadow-soft) }
+.btn-fav--active{
+  background:linear-gradient(135deg,var(--blush-400),var(--blush-200));
+  color:#0a1220;
+  border-color:transparent;
+}
+
+/* Pills (ingredients) */
+.chip{
+  display:inline-block;
+  padding:.25rem .5rem;
+  border-radius:999px;
+  font-size:.75rem; line-height:1;
+  background:var(--surface-2);
+  color:var(--text);
+  border:1px solid var(--border);
+}
+.no-pointer{ cursor:default }
+
+/* ---------- Inputs ---------- */
+.input{
+  width:100%;
+  height:40px;
+  padding:0 12px;
+  border-radius:12px;
+  color:var(--text);
+  background:var(--surface-1);
+  border:1px solid var(--border);
+  outline:none;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+.input:focus{
+  border-color:var(--indigo-400);
+  box-shadow:0 0 0 3px rgba(133,145,255,.25);
+}
+
+/* ---------- Buttons ---------- */
+button{ font:inherit; cursor:pointer }
+.btn-press{ transform:translateZ(0); transition:transform .12s ease }
+.btn-press:active{ transform: translateY(1px) }
+
+.btn-primary{
+  height:38px; padding:0 14px; border-radius:12px; border:0;
+  color:#0b1321; font-weight:600;
+  background:linear-gradient(135deg,var(--mint-400),var(--mint-200));
+  box-shadow:var(--shadow-soft);
+  transition:filter .15s ease, transform .12s ease, box-shadow .12s ease;
+}
+.btn-primary:hover{ filter:brightness(1.05); transform:translateY(-1px); box-shadow:var(--shadow) }
+
+.btn-secondary{
+  height:38px; padding:0 14px; border-radius:12px;
+  background:var(--surface-2); color:var(--text);
+  border:1px solid var(--border);
+  transition:background-color .12s ease, transform .12s ease, box-shadow .12s ease;
+}
+.btn-secondary:hover{ background:var(--surface-1); transform:translateY(-1px); box-shadow:var(--shadow-soft) }
+
+/* Ghost (open) */
+.btn-ghost{
+  height:34px; padding:0 12px; border-radius:10px;
+  background:transparent; border:1px solid var(--border);
+  color:var(--text);
+  transition:background-color .12s ease, transform .12s ease, box-shadow .12s ease;
+}
+.btn-ghost:hover{ background:var(--surface-2); transform:translateY(-1px); box-shadow:var(--shadow-soft) }
+
+.btn-accent{
+  height:38px; padding:0 14px; border-radius:12px; border:0;
+  background:linear-gradient(135deg,var(--blush-400),var(--blush-200));
+  color:#0a1220; font-weight:600;
+  transition:filter .15s ease, transform .12s ease, box-shadow .12s ease;
+}
+.btn-accent:hover{ filter:brightness(1.04); transform:translateY(-1px); box-shadow:var(--shadow) }
+
+/* ---------- Filters actions (кнопки под полями) ---------- */
+.filters-actions{
+  margin-top:18px;
+  display:flex; gap:12px;
+}
+.filters-actions .btn-primary,
+.filters-actions .btn-secondary{
+  min-width:120px;
+}
+/* Светлый «glow» для Reset на тёмной теме */
+:root.dark .filters-actions .btn-secondary{
+  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+}
+:root.dark .filters-actions .btn-secondary:hover{
+  box-shadow: 0 0 0 4px rgba(255,255,255,.10);
+}
+
+/* ---------- Utility blocks ---------- */
+.card .meta{ color:var(--text-muted); font-size:.84rem }
+
+/* ---------- Skeleton + Spinner for images ---------- */
+@keyframes shimmer{
+  0%{ background-position: 200% 0 }
+  100%{ background-position:-200% 0 }
+}
+.img-skeleton{
+  position:absolute; inset:0;
+  background:linear-gradient(90deg,var(--surface-2),rgba(255,255,255,.6),var(--surface-2));
+  background-size:200% 100%;
+  animation:shimmer 1.2s linear infinite;
+  border-radius:12px;
+}
+@keyframes spin{ to{ transform:translate(-50%,-50%) rotate(360deg) } }
+.spinner{
+  position:absolute; left:50%; top:50%;
+  width:28px; height:28px; border-radius:50%;
+  border:3px solid rgba(0,0,0,.15);
+  border-top-color:var(--blush-500);
+  transform:translate(-50%,-50%);
+  animation:spin 1s linear infinite;
+}
+
+/* ---------- Pagination ---------- */
+.pagination{
+  display:flex; align-items:center; justify-content:center;
+  gap:10px; margin:16px 0 0;
+}
+.page-btn{
+  min-width:38px; height:38px; border-radius:12px;
+  border:1px solid var(--border); background:var(--surface-1);
+  color:var(--text);
+  display:grid; place-items:center; padding:0 10px;
+  transition:background-color .12s ease, color .12s ease, border-color .12s ease, transform .12s ease, box-shadow .12s ease;
+}
+.page-btn:hover{ background:var(--surface-2); transform:translateY(-1px); box-shadow:var(--shadow-soft) }
+.page-btn[aria-current="page"]{
+  border-color:var(--indigo-400);
+  box-shadow:0 0 0 3px rgba(133,145,255,.25);
+}
+
+/* ---------- Modal ---------- */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:50;
+  background:rgba(0,0,0,.5);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.modal{
+  width:min(980px, 100%);
+  background:var(--surface-1);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.modal__body{
+  max-height:80vh; overflow:auto;
+  padding:18px 18px 22px;
+}
+.modal__title{ font-size:1.25rem; font-weight:700; margin:10px 0 6px }
+
+/* ---------- Ribbons ---------- */
+.ribbon{
+  position:absolute; top:8px; left:8px; z-index:2;
+  background:linear-gradient(135deg,var(--blush-500),var(--mint-400));
+  color:#0a1220; font-weight:700; font-size:.75rem;
+  padding:.25rem .5rem; border-radius:.5rem;
+  box-shadow:var(--shadow-soft);
+}
+
+/* ---------- Motion ---------- */
+@keyframes rise{
+  from{ opacity:0; transform:translateY(12px) }
+  to{ opacity:1; transform:none }
+}
+.animate-rise{ animation: rise .38s ease both }
+
+/* ---------- Small helpers + spacing utilities ---------- */
+.hidden{ display:none }
+.line-clamp-2{
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  line-clamp:2;
+}
+.mx-auto{ margin-left:auto; margin-right:auto }
+.max-w-6xl{ max-width:72rem }
+.px-4{ padding-left:1rem; padding-right:1rem }
+.pb-10{ padding-bottom:2.5rem }
+.mt-20{ margin-top:5rem }
+.mt-8{ margin-top:2rem }
+.mb-3{ margin-bottom:.75rem }
+.font-semibold{ font-weight:600 }
+.text-lg{ font-size:1.125rem }
+
+/* небольшой отступ между Discover и фильтрами */
+main h2 + .grid{ margin-bottom:.75rem }
+
+/* ---------- Simple grid fallbacks ---------- */
+.grid{ display:grid }
+.gap-4{ gap:1rem }
+.gap-5{ gap:1.25rem }
+@media (min-width:480px){ .xs\:grid-cols-2{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+@media (min-width:768px){
+  .md\:grid-cols-3{ grid-template-columns:repeat(3,minmax(0,1fr)) }
+  .md\:grid-cols-4{ grid-template-columns:repeat(4,minmax(0,1fr)) }
+  .md\:grid-cols-5{ grid-template-columns:repeat(5,minmax(0,1fr)) }
+}
