@@ -8,6 +8,9 @@ import useDebouncedValue from "../hooks/useDebouncedValue.js";
 import { randomFive, showcaseSamples } from "../services/provider.themealdb.js";
 import { runtimeCache } from "../services/runtimeCache.js";
 
+/* ---------------- helpers ---------------- */
+
+// Маппинг с безопасными полями для источника
 function mapMeal(m) {
   const ings = [];
   for (let i = 1; i <= 20; i++) {
@@ -21,7 +24,10 @@ function mapMeal(m) {
     id: m.idMeal,
     title: m.strMeal,
     image: m.strMealThumb,
-    source: m.strSource || m.strYoutube || "",
+    // отдельные поля, чтобы «Open» всегда мог открыть что-то валидное
+    source: m.strSource || "",
+    youtube: m.strYoutube || "",
+    mealUrl: `https://www.themealdb.com/meal/${m.idMeal}`,
     ingredients: ings,
   };
 }
@@ -71,6 +77,7 @@ export default function Home() {
 
   const [open, setOpen] = useState(null);
 
+  // filters
   const [q, setQ] = useState("");
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
@@ -78,6 +85,7 @@ export default function Home() {
   const dInc = useDebouncedValue(include, 500);
   const dExc = useDebouncedValue(exclude, 500);
 
+  // pagination: 10 per page
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const total = Math.max(1, Math.ceil(recipes.length / pageSize));
@@ -86,6 +94,7 @@ export default function Home() {
     return recipes.slice(start, start + pageSize);
   }, [recipes, page]);
 
+  // initial discover + showcase
   useEffect(() => {
     let ignore = false;
     (async () => {
@@ -112,6 +121,7 @@ export default function Home() {
     };
   }, []);
 
+  // auto search
   useEffect(() => {
     if (!dq && !dInc && !dExc) {
       setRecipes([]);
@@ -119,8 +129,10 @@ export default function Home() {
       return;
     }
     runSearch(dq, dInc, dExc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dq, dInc, dExc]);
 
+  // SMART SEARCH: name (phrase + words) + ingredients, ensure >=10
   async function runSearch(qv = q, incv = include, excv = exclude) {
     setLoading(true);
     setError("");
@@ -138,7 +150,7 @@ export default function Home() {
       const words = qv.trim().split(/\s+/).filter(Boolean);
       const nameTerms = [
         ...(qv.trim() ? [qv.trim()] : []),
-        ...words.slice(0, 3), // не больше 3 слов
+        ...words.slice(0, 3),
       ];
 
       const nameChunks = await Promise.all(
@@ -284,6 +296,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Results */}
         {loading && (
           <div className="grid xs:grid-cols-2 md:grid-cols-3 gap-5 mt-8">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -306,6 +319,7 @@ export default function Home() {
           </>
         )}
 
+        {/* Popular categories — показываем ТОЛЬКО если нет результатов */}
         {!loading && recipes.length === 0 && !!samples.length && (
           <>
             <h3 className="mt-8 mb-3 font-semibold">Popular categories</h3>

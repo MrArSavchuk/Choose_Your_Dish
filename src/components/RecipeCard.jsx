@@ -1,63 +1,75 @@
-import React, { useEffect, useState } from "react";
-import { Bookmark } from "lucide-react";
-import { isFavorite, toggleFavorite } from "../services/favorites.js";
+import React, { useState } from "react";
+import { useFavorites } from "../context/FavoritesContext.jsx";
+
+/** Строим надёжный внешний URL */
+function buildExternalUrl(recipe) {
+  const isHttp = (u) => /^https?:\/\//i.test(u || "");
+  if (isHttp(recipe.source)) return recipe.source;
+  if (isHttp(recipe.youtube)) return recipe.youtube;
+  if (recipe.mealUrl) return recipe.mealUrl;
+  return `https://www.themealdb.com/meal/${recipe.id}`;
+}
 
 export default function RecipeCard({ recipe, onOpen, idx = 0, noAnim = false }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const saved = isFavorite(recipe.id);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    setSaved(isFavorite(recipe.id));
-  }, [recipe.id]);
+  const openSource = () => {
+    const url = buildExternalUrl(recipe);
+    window.open(url, "_blank", "noopener");
+  };
 
-  function onToggleSave() {
-    const state = toggleFavorite(recipe);
-    setSaved(state);
-  }
+  const openModal = () => {
+    if (onOpen) onOpen(recipe);
+  };
 
   return (
     <article
-      className={`card overflow-hidden card-col ${noAnim ? "" : "animate-rise"}`}
-      style={noAnim ? undefined : { animationDelay: `${idx * 60}ms` }}
+      className={[
+        "card relative",
+        !noAnim ? "animate-slide-up delay-" + (idx % 6) : "",
+      ].join(" ")}
+      role="listitem"
     >
-      <div className="relative card-img-wrap">
-        {!imgLoaded && (
-          <>
-            <div className="img-skeleton" />
-            <div className="spinner" />
-          </>
-        )}
+      {/* Кликабельное изображение — кнопка, чтобы не было конфликтов с оверлеями */}
+      <button
+        type="button"
+        onClick={openModal}
+        className="block relative rounded-xl overflow-hidden focus-outline"
+        aria-label={`Open recipe ${recipe.title}`}
+      >
+        {!imgLoaded && <div className="img-skeleton" />}
         <img
           src={recipe.image}
           alt={recipe.title}
           loading="lazy"
           onLoad={() => setImgLoaded(true)}
-          style={{ opacity: imgLoaded ? 1 : 0, transition: "opacity .25s ease" }}
+          className={`w-full h-48 object-cover ${imgLoaded ? "opacity-100" : "opacity-0"}`}
         />
+      </button>
+
+      <h3 className="mt-3 mb-2 font-semibold leading-snug">{recipe.title}</h3>
+
+      <div className="flex flex-wrap gap-2">
+        {(recipe.ingredients || []).slice(0, 4).map((t, i) => (
+          <span key={i} className="chip">
+            {t}
+          </span>
+        ))}
       </div>
 
-      <h3 className="mt-3 font-semibold line-clamp-2">{recipe.title}</h3>
-
-      {!!recipe.ingredients?.length && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {recipe.ingredients.slice(0, 4).map((ing, i) => (
-            <span key={i} className="chip no-pointer">
-              {ing}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="card-spacer" />
-
-      <div className="card-actions">
+      {/* Кнопки внизу — одинаковая ширина */}
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <button
-          className={`btn-fav btn-press ${saved ? "btn-fav--active" : ""}`}
-          onClick={onToggleSave}
+          className={`btn-ghost btn-press w-full ${saved ? "saved" : ""}`}
+          onClick={() => toggleFavorite(recipe)}
+          aria-pressed={saved}
         >
-          <Bookmark size={16} /> {saved ? "Saved" : "Save"}
+          <span className="i-bookmark" aria-hidden="true" />
+          {saved ? "Saved" : "Save"}
         </button>
-        <button className="btn-ghost btn-press" onClick={() => onOpen?.(recipe)}>
+        <button className="btn-ghost btn-press w-full" onClick={openSource}>
           Open
         </button>
       </div>
