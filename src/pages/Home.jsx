@@ -1,354 +1,317 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Navbar from "../components/Navbar.jsx";
-import Pagination from "../components/Pagination.jsx";
 import RecipeCard from "../components/RecipeCard.jsx";
 import RecipeModal from "../components/RecipeModal.jsx";
-import SkeletonCard from "../components/SkeletonCard.jsx";
-import useDebouncedValue from "../hooks/useDebouncedValue.js";
-import { randomFive, showcaseSamples } from "../services/provider.themealdb.js";
-import { runtimeCache } from "../services/runtimeCache.js";
 
-/* ---------------- helpers ---------------- */
+/* --------------------------- helpers & API --------------------------- */
 
-// Маппинг с безопасными полями для источника
-function mapMeal(m) {
-  const ings = [];
+const API = "https://www.themealdb.com/api/json/v1/1";
+
+/** Нормализация ответа MealDB -> внутренняя карточка */
+function normalize(meal) {
+  const ingredients = [];
   for (let i = 1; i <= 20; i++) {
-    const name = m[`strIngredient${i}`];
-    const measure = m[`strMeasure${i}`];
-    if (name && name.trim()) {
-      ings.push([name, measure].filter(Boolean).join(" ").trim());
+    const ing = meal[`strIngredient${i}`];
+    const mea = meal[`strMeasure${i}`];
+    if (ing && ing.trim()) {
+      const line = [ing.trim(), (mea || "").trim()].filter(Boolean).join(" ");
+      ingredients.push(line);
     }
   }
+  const instructions = (meal.strInstructions || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const tags = (meal.strTags || "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
   return {
-    id: m.idMeal,
-    title: m.strMeal,
-    image: m.strMealThumb,
-    // отдельные поля, чтобы «Open» всегда мог открыть что-то валидное
-    source: m.strSource || "",
-    youtube: m.strYoutube || "",
-    mealUrl: `https://www.themealdb.com/meal/${m.idMeal}`,
-    ingredients: ings,
+    id: meal.idMeal,
+    title: meal.strMeal,
+    image: meal.strMealThumb,
+    ingredients,
+    instructions,
+    tags,
+    source: meal.strSource,
+    youtube: meal.strYoutube,
+    mealUrl: `https://www.themealdb.com/meal/${meal.idMeal}`,
   };
 }
 
-async function fetchMealById(id) {
-  const res = await fetch(
-    `https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`
-  );
-  const data = await res.json();
-  const m = data?.meals?.[0];
-  return m ? mapMeal(m) : null;
+/** запрос по названию; если q пустая, вернет [] */
+async function searchByTitle(q) {
+  if (!q) return [];
+  const res = await fetch(`${API}/search.php?s=${encodeURIComponent(q)}`);
+  const json = await res.json();
+  const meals = json?.meals || [];
+  return meals.map(normalize);
 }
 
-async function fetchByIngredient(token, limit = 15) {
-  const res = await fetch(
-    `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(
-      token
-    )}`
-  );
-  const data = await res.json();
-  const meals = data?.meals || [];
-  const ids = meals.slice(0, limit).map((m) => m.idMeal);
-  const details = await Promise.all(ids.map((id) => fetchMealById(id)));
-  return details.filter(Boolean);
+/** случайный рецепт */
+async function getRandomOne() {
+  const res = await fetch(`${API}/random.php`);
+  const json = await res.json();
+  const meal = json?.meals?.[0];
+  return meal ? normalize(meal) : null;
 }
 
-async function fetchByName(term) {
-  const res = await fetch(
-    `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(
-      term
-    )}`
-  );
-  const data = await res.json();
-  const meals = data?.meals || [];
-  return meals.map(mapMeal);
+/** одна карточка для «категории» — берём поиск по слову-синониму */
+async function oneBySeed(seed) {
+  const res = await fetch(`${API}/search.php?s=${encodeURIComponent(seed)}`);
+  const json = await res.json();
+  const meal = json?.meals?.[0];
+  return meal ? normalize(meal) : null;
 }
 
-/* ----------------------------------------- */
+/** фильтрация по include/exclude (через client-side фильтр) */
+function filterByTokens(list, includeTokens, excludeTokens) {
+  const inc = includeTokens
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const exc = excludeTokens
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (inc.length === 0 && exc.length === 0) return list;
+
+  const inStr = (s) => (s || "").toLowerCase();
+
+  return list.filter((r) => {
+    const hay = [r.title, ...(r.ingredients || [])].join(" ").toLowerCase();
+    const okInc = inc.length ? inc.every((t) => hay.includes(t)) : true;
+    const okExc = exc.length ? exc.every((t) => !hay.includes(t)) : true;
+    return okInc && okExc;
+  });
+}
+
+/** шифр-шарфл 🤍 */
+function shuffle(a) {
+  const arr = a.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ------------------------------- page ------------------------------- */
 
 export default function Home() {
+  // Discover today (5)
   const [discover, setDiscover] = useState([]);
-  const [samples, setSamples] = useState([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
 
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Popular categories (пока нет поиска)
+  const seeds = useMemo(
+    () => ["salad", "beef", "pasta", "yogurt", "breakfast"],
+    []
+  );
+  const [popular, setPopular] = useState([]);
+  const [popularLoading, setPopularLoading] = useState(false);
 
-  const [open, setOpen] = useState(null);
+  // Search
+  const [title, setTitle] = useState("");
+  const [include, setInclude] = useState("tomato, basil");
+  const [exclude, setExclude] = useState("nuts, gluten");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
-  // filters
-  const [q, setQ] = useState("");
-  const [include, setInclude] = useState("");
-  const [exclude, setExclude] = useState("");
-  const dq = useDebouncedValue(q, 500);
-  const dInc = useDebouncedValue(include, 500);
-  const dExc = useDebouncedValue(exclude, 500);
+  // Modal
+  const [active, setActive] = useState(null);
 
-  // pagination: 10 per page
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-  const total = Math.max(1, Math.ceil(recipes.length / pageSize));
-  const slice = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return recipes.slice(start, start + pageSize);
-  }, [recipes, page]);
-
-  // initial discover + showcase
+  /* ---- Discover (5 random) c кэшем на сессию ---- */
   useEffect(() => {
-    let ignore = false;
-    (async () => {
-      setError("");
-      if (runtimeCache.discover && runtimeCache.showcase) {
-        if (ignore) return;
-        setDiscover(runtimeCache.discover);
-        setSamples(runtimeCache.showcase);
-        return;
-      }
+    let alive = true;
+
+    async function loadDiscover() {
+      setDiscoverLoading(true);
       try {
-        const [r5, sc] = await Promise.all([randomFive(true), showcaseSamples(true)]);
-        if (ignore) return;
-        runtimeCache.discover = r5;
-        runtimeCache.showcase = sc;
-        setDiscover(r5);
-        setSamples(sc);
-      } catch {
-        if (!ignore) setError("Could not load initial data. Try again later.");
+        const cached = sessionStorage.getItem("cyd:random5");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (alive) setDiscover(parsed);
+          return;
+        }
+        // параллельно 5 случайных
+        const tasks = Array.from({ length: 5 }, () => getRandomOne());
+        const ready = (await Promise.all(tasks)).filter(Boolean);
+        if (alive) {
+          setDiscover(ready);
+          sessionStorage.setItem("cyd:random5", JSON.stringify(ready));
+        }
+      } finally {
+        alive && setDiscoverLoading(false);
       }
-    })();
+    }
+
+    loadDiscover();
     return () => {
-      ignore = true;
+      alive = false;
     };
   }, []);
 
-  // auto search
+  /* ---- Popular seeds (по одному рецепту на «категорию») ---- */
   useEffect(() => {
-    if (!dq && !dInc && !dExc) {
-      setRecipes([]);
-      setPage(1);
-      return;
-    }
-    runSearch(dq, dInc, dExc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dq, dInc, dExc]);
-
-  // SMART SEARCH: name (phrase + words) + ingredients, ensure >=10
-  async function runSearch(qv = q, incv = include, excv = exclude) {
-    setLoading(true);
-    setError("");
-    setPage(1);
-    try {
-      const includeTokens = incv
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-      const excludeTokens = excv
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-
-      const words = qv.trim().split(/\s+/).filter(Boolean);
-      const nameTerms = [
-        ...(qv.trim() ? [qv.trim()] : []),
-        ...words.slice(0, 3),
-      ];
-
-      const nameChunks = await Promise.all(
-        nameTerms.map((t) => fetchByName(t))
-      );
-      let pool = nameChunks.flat();
-
-      const extraChunks = await Promise.all(
-        includeTokens.map((t) => fetchByIngredient(t, 18))
-      );
-      pool = pool.concat(extraChunks.flat());
-
-      const byId = new Map();
-      for (const r of pool) byId.set(r.id, r);
-      let list = Array.from(byId.values());
-
-      if (excludeTokens.length) {
-        list = list.filter((r) => {
-          const ingStr = (r.ingredients || []).join(" ").toLowerCase();
-          return !excludeTokens.some((t) => ingStr.includes(t));
-        });
+    let alive = true;
+    async function loadPopular() {
+      setPopularLoading(true);
+      try {
+        const tasks = seeds.map((s) => oneBySeed(s));
+        const r = (await Promise.all(tasks)).filter(Boolean);
+        if (alive) setPopular(r);
+      } finally {
+        alive && setPopularLoading(false);
       }
-
-      const scored = list.map((r) => {
-        const ing = (r.ingredients || []).join(" ").toLowerCase();
-        const score = includeTokens.reduce(
-          (acc, t) => acc + (ing.includes(t) ? 1 : 0),
-          0
-        );
-        return { r, score };
-      });
-      scored.sort((a, b) => b.score - a.score);
-
-      setRecipes(scored.map((s) => s.r));
-    } catch {
-      setError("Search failed. Please retry.");
-    } finally {
-      setLoading(false);
     }
-  }
+    loadPopular();
+    return () => {
+      alive = false;
+    };
+  }, [seeds]);
 
-  async function fillRandom() {
-    setLoading(true);
-    setError("");
+  /* ---- Поиск ---- */
+  async function onApply(e) {
+    e?.preventDefault?.();
+    setSearching(true);
     try {
-      setRecipes(await randomFive(true));
-    } catch {
-      setError("Could not load random recipes.");
+      const base = await searchByTitle(title || include.split(",")[0] || "");
+      const filtered = filterByTokens(base, include, exclude);
+      setResults(shuffle(filtered).slice(0, 10));
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   }
 
-  function reset() {
-    setQ("");
+  function onReset() {
+    setTitle("");
     setInclude("");
     setExclude("");
-    setRecipes([]);
-    setPage(1);
+    setResults([]);
   }
 
+  const showPopular = results.length === 0;
+
   return (
-    <div className="min-h-screen bg-app text-app">
-      <Navbar />
+    <div className="page home">
+      {/* Discover today */}
+      <section className="section">
+        <h2 className="section-title-xl">Discover today</h2>
 
-      <main className="mx-auto max-w-6xl px-4 pb-10" aria-live="polite">
-        {/* Discover */}
-        <h2 className="mt-20 mb-3 font-semibold text-lg">Discover today</h2>
-        {!discover.length && !error && (
-          <div className="grid xs:grid-cols-2 md:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        )}
-        {!!discover.length && (
-          <div className="grid xs:grid-cols-2 md:grid-cols-5 gap-4" role="list">
-            {discover.map((r, i) => (
-              <RecipeCard
-                key={`${r.id}-${i}`}
-                recipe={r}
-                onOpen={setOpen}
-                idx={i}
-                noAnim
-              />
-            ))}
-          </div>
-        )}
-        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+        <div className="grid grid-cards">
+          {(discoverLoading ? Array.from({ length: 5 }) : discover).map(
+            (r, i) =>
+              r ? (
+                <RecipeCard
+                  key={r.id}
+                  recipe={r}
+                  onOpen={setActive}
+                  idx={i}
+                  noAnim
+                />
+              ) : (
+                <div key={i} className="card skeleton recipe-card">
+                  <div className="img-skeleton" />
+                  <div className="skeleton-line w-80" />
+                  <div className="skeleton-line w-60" />
+                  <div className="card-actions">
+                    <span className="btn-ghost disabled" />
+                    <span className="btn-ghost disabled" />
+                  </div>
+                </div>
+              )
+          )}
+        </div>
+      </section>
 
-        {/* Filters */}
-        <section className="card mt-8" aria-label="Search filters">
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm text-muted" htmlFor="f-q">
-                Search in title
-              </label>
-              <input
-                id="f-q"
-                className="input"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="pasta, chicken…"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted" htmlFor="f-inc">
-                Include ingredients
-              </label>
-              <input
-                id="f-inc"
-                className="input"
-                value={include}
-                onChange={(e) => setInclude(e.target.value)}
-                placeholder="tomato, basil"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted" htmlFor="f-exc">
-                Exclude ingredients
-              </label>
-              <input
-                id="f-exc"
-                className="input"
-                value={exclude}
-                onChange={(e) => setExclude(e.target.value)}
-                placeholder="nuts, gluten"
-              />
-            </div>
+      {/* Filters */}
+      <section className="section mt-24">
+        <form className="filter-bar" onSubmit={onApply}>
+          <div className="field">
+            <label>Search in title</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="pasta, chicken..."
+            />
           </div>
 
-          <div className="filters-actions">
-            <button
-              className="btn-primary btn-press"
-              onClick={() => runSearch()}
-              disabled={loading}
-            >
-              {loading ? "Searching…" : "Apply"}
+          <div className="field">
+            <label>Include ingredients</label>
+            <input
+              value={include}
+              onChange={(e) => setInclude(e.target.value)}
+              placeholder="tomato, basil"
+            />
+          </div>
+
+          <div className="field">
+            <label>Exclude ingredients</label>
+            <input
+              value={exclude}
+              onChange={(e) => setExclude(e.target.value)}
+              placeholder="nuts, gluten"
+            />
+          </div>
+
+          <div className="actions">
+            <button className="btn-primary btn-press" type="submit" disabled={searching}>
+              {searching ? "Loading…" : "Apply"}
             </button>
-            <button className="btn-secondary btn-press" onClick={reset}>
+            <button
+              className="btn-ghost btn-press outline"
+              type="button"
+              onClick={onReset}
+            >
               Reset
             </button>
           </div>
-        </section>
+        </form>
+      </section>
 
-        {/* Results */}
-        {loading && (
-          <div className="grid xs:grid-cols-2 md:grid-cols-3 gap-5 mt-8">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} />
+      {/* Results */}
+      {results.length > 0 && (
+        <section className="section">
+          <h3 className="section-title">Results</h3>
+          <div className="grid grid-cards">
+            {results.map((r, i) => (
+              <RecipeCard key={r.id} recipe={r} onOpen={setActive} idx={i} />
             ))}
           </div>
-        )}
+        </section>
+      )}
 
-        {!loading && recipes.length > 0 && (
-          <>
-            <h3 className="mt-8 mb-3 font-semibold">Results</h3>
-            <div className="grid xs:grid-cols-2 md:grid-cols-3 gap-5" role="list">
-              {slice.map((r, i) => (
-                <RecipeCard key={`${r.id}-${i}`} recipe={r} onOpen={setOpen} idx={i} />
-              ))}
-            </div>
-            {recipes.length > pageSize && (
-              <Pagination page={page} total={total} onChange={setPage} />
+      {/* Popular categories (прячем при поиске) */}
+      {showPopular && (
+        <section className="section mt-24">
+          <h3 className="section-title">Popular categories</h3>
+          <div className="grid grid-cards">
+            {(popularLoading ? Array.from({ length: seeds.length }) : popular).map(
+              (r, i) =>
+                r ? (
+                  <RecipeCard
+                    key={r.id}
+                    recipe={r}
+                    onOpen={setActive}
+                    idx={i}
+                  />
+                ) : (
+                  <div key={i} className="card skeleton recipe-card">
+                    <div className="img-skeleton" />
+                    <div className="skeleton-line w-80" />
+                    <div className="skeleton-line w-60" />
+                    <div className="card-actions">
+                      <span className="btn-ghost disabled" />
+                      <span className="btn-ghost disabled" />
+                    </div>
+                  </div>
+                )
             )}
-          </>
-        )}
-
-        {/* Popular categories — показываем ТОЛЬКО если нет результатов */}
-        {!loading && recipes.length === 0 && !!samples.length && (
-          <>
-            <h3 className="mt-8 mb-3 font-semibold">Popular categories</h3>
-            <div className="grid xs:grid-cols-2 md:grid-cols-5 gap-4">
-              {samples.map((r, i) => (
-                <RecipeCard
-                  key={`${r.group || "g"}-${r.id}-${i}`}
-                  recipe={r}
-                  onOpen={setOpen}
-                  idx={i}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {!loading && recipes.length === 0 && (dq || dInc || dExc) && (
-          <div className="card mt-6">
-            <p className="mb-3">
-              Nothing found for your filters. The API sometimes returns empty lists.
-            </p>
-            <button className="btn-accent btn-press" onClick={fillRandom}>
-              Show 5 random
-            </button>
           </div>
-        )}
-      </main>
+        </section>
+      )}
 
-      {open && <RecipeModal recipe={open} onClose={() => setOpen(null)} />}
+      {/* Modal */}
+      {active && <RecipeModal recipe={active} onClose={() => setActive(null)} />}
     </div>
   );
 }

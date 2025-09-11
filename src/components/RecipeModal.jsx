@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 
+/** Надёжная ссылка на первоисточник */
 function buildExternalUrl(recipe) {
   const isHttp = (u) => /^https?:\/\//i.test(u || "");
   if (isHttp(recipe.source)) return recipe.source;
@@ -13,69 +14,100 @@ export default function RecipeModal({ recipe, onClose }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const saved = isFavorite(recipe.id);
 
+  // блокируем скролл боди и закрываем по ESC
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    document.body.classList.add("no-scroll");
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.classList.remove("no-scroll");
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onClose]);
 
-  const openSource = () => {
-    const url = buildExternalUrl(recipe);
-    window.open(url, "_blank", "noopener");
-  };
+  if (!recipe) return null;
+
+  const steps = Array.isArray(recipe.instructions)
+    ? recipe.instructions
+    : (recipe.instructions || "")
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
+      className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label={recipe.title}
+      onClick={onClose}
     >
       <div
-        className="bg-panel rounded-2xl max-w-3xl w-full shadow-xl overflow-hidden"
+        className="modal-card"
         onClick={(e) => e.stopPropagation()}
+        role="document"
       >
-        {/* верхняя картинка */}
-        <img
-          src={recipe.image}
-          alt={recipe.title}
-          className="w-full max-h-[360px] object-cover"
-          loading="lazy"
-        />
+        <button
+          className="modal-close"
+          onClick={onClose}
+          aria-label="Close modal"
+          type="button"
+        >
+          ×
+        </button>
 
-        {/* контент со скроллом, если много текста */}
-        <div className="p-5 max-h-[60vh] overflow-y-auto">
-          <div className="flex items-start justify-between gap-4">
-            <h3 className="text-xl font-semibold">{recipe.title}</h3>
-            <button
-              className="btn-ghost btn-press shrink-0"
-              onClick={onClose}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
+        <div className="modal-media">
+          <img src={recipe.image} alt={recipe.title} />
+        </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {(recipe.ingredients || []).map((tag, i) => (
-              <span key={i} className="chip">
-                {tag}
-              </span>
+        <div className="modal-content">
+          <h2 className="modal-title">{recipe.title}</h2>
+
+          {!!(recipe.tags && recipe.tags.length) && (
+            <div className="modal-meta">
+              {recipe.tags.map((t, i) => (
+                <span className="chip" key={i}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <h3 className="section-title">Ingredients</h3>
+          <ul className="ingredients">
+            {(recipe.ingredients || []).map((ing, i) => (
+              <li key={i}>{ing}</li>
             ))}
-          </div>
+          </ul>
 
-          <div className="mt-5 flex gap-3">
+          {steps.length > 0 && (
+            <>
+              <h3 className="section-title">Steps</h3>
+              <ol className="steps">
+                {steps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            </>
+          )}
+
+          <div className="modal-actions">
             <button
-              className={`btn-primary btn-press ${saved ? "saved" : ""}`}
+              type="button"
+              className={`btn-ghost btn-press ${saved ? "is-saved" : ""}`}
               onClick={() => toggleFavorite(recipe)}
               aria-pressed={saved}
             >
               {saved ? "Saved" : "Save"}
             </button>
-            <button className="btn-secondary btn-press" onClick={openSource}>
+
+            <a
+              className="btn-ghost btn-press"
+              href={buildExternalUrl(recipe)}
+              target="_blank"
+              rel="noopener"
+            >
               Open source
-            </button>
+            </a>
           </div>
         </div>
       </div>
