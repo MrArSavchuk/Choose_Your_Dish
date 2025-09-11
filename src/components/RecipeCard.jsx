@@ -1,75 +1,49 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 
-/** Надёжный внешний URL */
-function buildExternalUrl(recipe) {
-  const isHttp = (u) => /^https?:\/\//i.test(u || "");
-  if (isHttp(recipe.source)) return recipe.source;
-  if (isHttp(recipe.youtube)) return recipe.youtube;
-  if (recipe.mealUrl) return recipe.mealUrl;
-  return `https://www.themealdb.com/meal/${recipe.id}`;
-}
-
-export default function RecipeCard({ recipe, onOpen, idx = 0, noAnim = false }) {
+export default function RecipeCard({ recipe, onOpen }) {
   const { isFavorite, toggleFavorite } = useFavorites();
-  const saved = isFavorite(recipe.id);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const openSource = () => {
-    const url = buildExternalUrl(recipe);
-    window.open(url, "_blank", "noopener");
-  };
-
-  const openModal = () => onOpen && onOpen(recipe);
-
   return (
-    <article
-      className={[
-        "card recipe-card",
-        !noAnim ? `animate-slide-up delay-${idx % 6}` : "",
-      ].join(" ")}
-      role="listitem"
-    >
-      {/* Кликабельная картинка */}
-      <button
-        type="button"
-        className="img-button focus-outline"
-        onClick={openModal}
-        aria-label={`Open recipe ${recipe.title}`}
-      >
-        {!imgLoaded && <div className="img-skeleton" aria-hidden="true" />}
-        <img
-          src={recipe.image}
-          alt={recipe.title}
-          loading="lazy"
-          onLoad={() => setImgLoaded(true)}
-        />
-      </button>
-
-      {/* Тело карточки */}
-      <div className="card-body">
-        <h3 className="title">{recipe.title}</h3>
-        <div className="tags">
-          {(recipe.ingredients || []).slice(0, 4).map((t, i) => (
-            <span key={i} className="chip">
-              {t}
-            </span>
-          ))}
-        </div>
+    <article className="card recipe-card">
+      <div className="progressive-wrap" onClick={() => onOpen(recipe)} style={{ cursor: "pointer" }}>
+        <div className="skeleton" style={{ aspectRatio: "4/3" }} />
+        {recipe.image ? (
+          <img
+            src={recipe.image}
+            alt={recipe.title}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+            className={`progressive-img ${imgLoaded ? "is-loaded" : ""}`}
+          />
+        ) : null}
       </div>
 
-      {/* Футер всегда снизу */}
-      <div className="card-actions">
-        <button
-          className={`btn-ghost btn-press ${saved ? "is-saved" : ""}`}
-          onClick={() => toggleFavorite(recipe)}
-          aria-pressed={saved}
-        >
-          {saved ? "Saved" : "Save"}
-        </button>
-        <button className="btn-ghost btn-press" onClick={openSource}>
-          Open
-        </button>
+      <div className="card-body">
+        <h3 className="recipe-title">{recipe.title}</h3>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {recipe.ingredients?.slice(0, 4).map((t, i) => (
+            <span className="chip" key={i}>{t}</span>
+          ))}
+        </div>
+
+        <div className="card-actions">
+          <button
+            className={`btn btn-pill btn-ghost ${isFavorite(recipe) ? "btn-outline" : "btn-primary"}`}
+            onClick={() => toggleFavorite(recipe)}
+          >
+            {isFavorite(recipe) ? "Saved" : "Save"}
+          </button>
+          <a
+            className="btn btn-pill btn-solid"
+            href={recipe.source || recipe.href || `https://www.themealdb.com/meal.php?c=${recipe.id}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open
+          </a>
+        </div>
       </div>
     </article>
   );

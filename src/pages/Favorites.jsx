@@ -1,52 +1,58 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 import RecipeCard from "../components/RecipeCard.jsx";
 import RecipeModal from "../components/RecipeModal.jsx";
+import { fetchRandomSet } from "../services/provider.themealdb.js";
 
 export default function Favorites() {
-  const { list, clearFavorites } = useFavorites();
-  const [active, setActive] = React.useState(null);
+  const { favorites, clearFavorites } = useFavorites();
+  const [suggest, setSuggest] = useState([]);
+  const [modal, setModal] = useState({ open: false, recipe: null });
 
-  const confirmClear = () => {
-    if (!list.length) return;
-    if (window.confirm("Clear all saved recipes?")) {
-      clearFavorites();
-    }
-  };
+  useEffect(() => {
+    let mounted = true;
+    const boot = async () => {
+      const r = await fetchRandomSet(1);
+      if (mounted) setSuggest(r);
+    };
+    boot();
+    return () => (mounted = false);
+  }, []);
 
   return (
-    <div className="page">
-      <div className="page-header">
+    <div className="container" style={{ marginTop: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h1>Favorites</h1>
-        <button
-          className="btn-ghost btn-press danger"
-          onClick={confirmClear}
-          disabled={!list.length}
-          title="Remove all saved recipes"
-        >
-          Clear all
-        </button>
+        {favorites.length > 0 && (
+          <button className="btn btn-danger btn-pill" onClick={clearFavorites}>
+            Clear all
+          </button>
+        )}
       </div>
 
-      {!list.length ? (
+      <h3 style={{ margin: "10px 0" }}>You might like</h3>
+      <div className="grid" style={{ marginBottom: 18 }}>
+        {suggest.map((r) => (
+          <RecipeCard key={r.id} recipe={r} onOpen={(recipe) => setModal({ open: true, recipe })} />
+        ))}
+      </div>
+
+      <h3 style={{ margin: "10px 0" }}>Saved recipes</h3>
+      {favorites.length === 0 ? (
         <p className="muted">No saved recipes yet.</p>
       ) : (
-        <div className="grid grid-cards">
-          {list.map((r, i) => (
-            <RecipeCard
-              key={r.id || i}
-              recipe={r}
-              onOpen={setActive}
-              idx={i}
-              noAnim
-            />
+        <div className="grid">
+          {favorites.map((r) => (
+            <RecipeCard key={r.id} recipe={r} onOpen={(recipe) => setModal({ open: true, recipe })} />
           ))}
         </div>
       )}
 
-      {active && (
-        <RecipeModal recipe={active} onClose={() => setActive(null)} />
-      )}
+      <RecipeModal
+        isOpen={modal.open}
+        recipe={modal.recipe}
+        onClose={() => setModal({ open: false, recipe: null })}
+      />
     </div>
   );
 }

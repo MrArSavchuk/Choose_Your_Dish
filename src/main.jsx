@@ -1,19 +1,13 @@
 import React from "react";
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { ThemeProvider } from "./context/ThemeContext.jsx";
-import { FavoritesProvider } from "./context/FavoritesContext.jsx";
 import App from "./App.jsx";
 import "./index.css";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <FavoritesProvider>
-          <App />
-        </FavoritesProvider>
-      </ThemeProvider>
+      <App />
     </BrowserRouter>
   </React.StrictMode>
 );

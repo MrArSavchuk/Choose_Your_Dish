@@ -1,111 +1,93 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 
-/** Надёжная ссылка на первоисточник */
-function buildExternalUrl(recipe) {
-  const isHttp = (u) => /^https?:\/\//i.test(u || "");
-  if (isHttp(recipe.source)) return recipe.source;
-  if (isHttp(recipe.youtube)) return recipe.youtube;
-  if (recipe.mealUrl) return recipe.mealUrl;
-  return `https://www.themealdb.com/meal/${recipe.id}`;
-}
-
-export default function RecipeModal({ recipe, onClose }) {
+export default function RecipeModal({ isOpen, recipe, onClose }) {
   const { isFavorite, toggleFavorite } = useFavorites();
-  const saved = isFavorite(recipe.id);
 
-  // блокируем скролл боди и закрываем по ESC
+  const title = recipe?.title || recipe?.name || "Recipe";
+  const image = recipe?.image || recipe?.thumbnail || "";
+  const sourceUrl =
+    recipe?.source ||
+    recipe?.href ||
+    (recipe?.id && `https://www.themealdb.com/meal.php?c=${recipe.id}`) ||
+    "#";
+
+  const ingredients =
+    recipe?.ingredients && Array.isArray(recipe.ingredients)
+      ? recipe.ingredients
+      : (recipe?.ingredientLines || []).map((t) => String(t));
+
+  const steps =
+    recipe?.instructions && Array.isArray(recipe.instructions)
+      ? recipe.instructions
+      : typeof recipe?.instructions === "string"
+      ? recipe.instructions.split(/\n+/)
+      : [];
+
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   useEffect(() => {
+    if (!isOpen) return;
     const onKey = (e) => e.key === "Escape" && onClose?.();
-    document.body.classList.add("no-scroll");
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.classList.remove("no-scroll");
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
 
-  if (!recipe) return null;
-
-  const steps = Array.isArray(recipe.instructions)
-    ? recipe.instructions
-    : (recipe.instructions || "")
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+  if (!isOpen) return null;
 
   return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div
-        className="modal-card"
-        onClick={(e) => e.stopPropagation()}
-        role="document"
-      >
-        <button
-          className="modal-close"
-          onClick={onClose}
-          aria-label="Close modal"
-          type="button"
-        >
-          ×
-        </button>
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="document">
+        <header className="modal-header">
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </header>
 
-        <div className="modal-media">
-          <img src={recipe.image} alt={recipe.title} />
-        </div>
+        <div className="modal-body">
+          <div className="modal-figure">
+            <div className="skeleton" style={{ width: "min(880px, 100%)", height: 420 }} aria-hidden />
+            {image ? (
+              <img
+                src={image}
+                alt={title}
+                loading="lazy"
+                onLoad={() => setImgLoaded(true)}
+                className={`progressive-img ${imgLoaded ? "is-loaded" : ""}`}
+              />
+            ) : null}
+          </div>
 
-        <div className="modal-content">
-          <h2 className="modal-title">{recipe.title}</h2>
+          <h2 className="modal-title">{title}</h2>
 
-          {!!(recipe.tags && recipe.tags.length) && (
-            <div className="modal-meta">
-              {recipe.tags.map((t, i) => (
-                <span className="chip" key={i}>
-                  {t}
-                </span>
-              ))}
-            </div>
+          {ingredients?.length > 0 && (
+            <section className="ingredients">
+              <h3 className="modal-section-title">Ingredients</h3>
+              <ul>
+                {ingredients.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </section>
           )}
 
-          <h3 className="section-title">Ingredients</h3>
-          <ul className="ingredients">
-            {(recipe.ingredients || []).map((ing, i) => (
-              <li key={i}>{ing}</li>
-            ))}
-          </ul>
-
-          {steps.length > 0 && (
-            <>
-              <h3 className="section-title">Steps</h3>
-              <ol className="steps">
+          {steps?.length > 0 && (
+            <section className="ingredients" style={{ marginTop: 16 }}>
+              <h3 className="modal-section-title">Steps</h3>
+              <ul>
                 {steps.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
-              </ol>
-            </>
+              </ul>
+            </section>
           )}
 
           <div className="modal-actions">
             <button
-              type="button"
-              className={`btn-ghost btn-press ${saved ? "is-saved" : ""}`}
+              className={`btn btn-pill ${isFavorite(recipe) ? "btn-outline" : "btn-primary"}`}
               onClick={() => toggleFavorite(recipe)}
-              aria-pressed={saved}
             >
-              {saved ? "Saved" : "Save"}
+              {isFavorite(recipe) ? "Saved" : "Save"}
             </button>
-
-            <a
-              className="btn-ghost btn-press"
-              href={buildExternalUrl(recipe)}
-              target="_blank"
-              rel="noopener"
-            >
+            <a className="btn btn-pill btn-outline" href={sourceUrl} target="_blank" rel="noreferrer">
               Open source
             </a>
           </div>
