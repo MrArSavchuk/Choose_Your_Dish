@@ -1,44 +1,67 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  loadFavorites,
+  saveFavorites,
+  toggleFavorite as svcToggle,
+  isFavorite as svcIsFavorite,
+} from "../services/favorites.js";
 
-const Ctx = createContext(null);
+const FavoritesCtx = createContext(null);
 
+/**
+ * Провайдер избранного.
+ * Необязателен: если его нет, useFavorites вернёт fallback на сервис.
+ */
 export function FavoritesProvider({ children }) {
-  const [ids, setIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("fav_ids") || "[]"); }
-    catch { return []; }
-  });
-  const [store, setStore] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("fav_store") || "{}"); }
-    catch { return {}; }
-  });
+  const [list, setList] = useState([]);
 
-  useEffect(() => { try { localStorage.setItem("fav_ids", JSON.stringify(ids)); } catch {} }, [ids]);
-  useEffect(() => { try { localStorage.setItem("fav_store", JSON.stringify(store)); } catch {} }, [store]);
+  useEffect(() => {
+    // первичная загрузка из localStorage
+    setList(loadFavorites());
 
-  const add = (recipe) => {
-    if (!recipe?.id) return;
-    setIds((prev) => (prev.includes(recipe.id) ? prev : [...prev, recipe.id]));
-    setStore((prev) => ({ ...prev, [recipe.id]: recipe }));
-  };
+    // слушаем глобальное событие из сервиса (когда фавориты меняются)
+    const onChanged = () => setList(loadFavorites());
+    window.addEventListener("cyd:favorites-changed", onChanged);
+    return () => window.removeEventListener("cyd:favorites-changed", onChanged);
+  }, []);
 
-  const remove = (id) => {
-    setIds((prev) => prev.filter((x) => x !== id));
-    setStore((prev) => {
-      const copy = { ...prev }; delete copy[id]; return copy;
-    });
-  };
-
-  const value = useMemo(() => ({
-      ids,
-      isFav: (id) => ids.includes(id),
-      toggleFav: (id, recipe) => (ids.includes(id) ? remove(id) : add(recipe)),
-      getAll: () => ids.map((id) => store[id]).filter(Boolean),
-      hidden: new Set(), 
+  const api = useMemo(
+    () => ({
+      list,
+      isFavorite: (id) => list.some((r) => (r.id || r) === id),
+      toggleFavorite: (recipe) => {
+        const saved = svcToggle(recipe); // сервис сам диспатчит событие
+        // синхронизируем локальный стейт
+        setList(loadFavorites());
+        return saved;
+      },
+      clearFavorites: () => {
+        saveFavorites([]);
+        setList([]);
+        try {
+          window.dispatchEvent(new CustomEvent("cyd:favorites-changed"));
+        } catch {}
+      },
     }),
-    [ids, store]
+    [list]
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <FavoritesCtx.Provider value={api}>{children}</FavoritesCtx.Provider>;
 }
 
-export const useFav = () => useContext(Ctx);
+/**
+ * Хук для работы с избранным.
+ * Если провайдера нет (например, в превью на Netlify) — используем fallback на сервис.
+ */
+export function useFavorites() {
+  const ctx = useContext(FavoritesCtx);
+  if (ctx) return ctx;
+
+  // Fallback: работаем напрямую через сервис (без реактивного списка)
+  return {
+    list: loadFavorites(),
+    isFavorite: (id) => svcIsFavorite(id),
+    toggleFavorite: (recipe) => svcToggle(recipe),
+    clearFavorites: () => saveFavorites([]),
+  };
+}
