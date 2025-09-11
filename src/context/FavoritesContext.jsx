@@ -1,13 +1,43 @@
-import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const FavoritesContext = createContext();
 
-const key = "favorite_recipes_v1";
+const SUGGEST_POOL = [
+  {
+    id: "s-1",
+    title: "Three Fish Pie",
+    image:
+      "https://www.themealdb.com/images/media/meals/spswqs1511558697.jpg",
+    ingredients: ["Potatoes 1kg", "Butter Knob", "Milk Dash", "Gruyere 50g"],
+    sourceUrl:
+      "https://www.bbcgoodfood.com/recipes/three-fish-pie",
+  },
+  {
+    id: "s-2",
+    title: "Beef Wellington",
+    image:
+      "https://www.themealdb.com/images/media/meals/vvpprx1487325699.jpg",
+    ingredients: ["Beef 750g", "Puff pastry", "Mushrooms"],
+    sourceUrl:
+      "https://www.jamieoliver.com/recipes/beef-recipes/beef-wellington/",
+  },
+  {
+    id: "s-3",
+    title: "Mediterranean Pasta Salad",
+    image:
+      "https://www.themealdb.com/images/media/meals/wvqpwt1468339226.jpg",
+    ingredients: ["Mozzarella balls", "Tomatoes", "Basil", "Farfalle"],
+    sourceUrl:
+      "https://www.allrecipes.com/recipe/14447/mediterranean-pasta-salad/",
+  },
+];
+
+const LS_KEY = "cyd_favorites_v1";
 
 export function FavoritesProvider({ children }) {
   const [favorites, setFavorites] = useState(() => {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(LS_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -15,25 +45,50 @@ export function FavoritesProvider({ children }) {
   });
 
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(favorites));
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(favorites));
+    } catch {}
   }, [favorites]);
 
-  const isFavorite = (recipe) =>
-    favorites.some((r) => String(r.id) === String(recipe.id));
+  const ids = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
 
-  const toggleFavorite = (recipe) => {
-    setFavorites((prev) =>
-      prev.some((r) => String(r.id) === String(recipe.id))
-        ? prev.filter((r) => String(r.id) !== String(recipe.id))
-        : [...prev, recipe]
-    );
-  };
+  function isFavorite(id) {
+    return ids.has(id);
+  }
 
-  const clearFavorites = () => setFavorites([]);
+  function toggleFavorite(recipe) {
+    setFavorites((prev) => {
+      const exists = prev.find((r) => r.id === recipe.id);
+      if (exists) return prev.filter((r) => r.id !== recipe.id);
+      const safe = {
+        id: recipe.id,
+        title: recipe.title,
+        image: recipe.image,
+        ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+        sourceUrl:
+          recipe.sourceUrl ||
+          recipe.href ||
+          `https://www.google.com/search?q=${encodeURIComponent(
+            recipe.title || "recipe"
+          )}`,
+      };
+      return [safe, ...prev].slice(0, 200);
+    });
+  }
+
+  function clearFavorites() {
+    setFavorites([]);
+  }
+
+  function suggest() {
+    const pool = SUGGEST_POOL.filter((x) => !ids.has(x.id));
+    if (pool.length === 0) return SUGGEST_POOL[0];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
 
   const value = useMemo(
-    () => ({ favorites, isFavorite, toggleFavorite, clearFavorites }),
-    [favorites]
+    () => ({ favorites, isFavorite, toggleFavorite, clearFavorites, suggest }),
+    [favorites, ids]
   );
 
   return (
@@ -43,4 +98,6 @@ export function FavoritesProvider({ children }) {
   );
 }
 
-export const useFavorites = () => useContext(FavoritesContext);
+export function useFavorites() {
+  return useContext(FavoritesContext);
+}

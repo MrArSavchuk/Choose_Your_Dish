@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function Navbar() {
   return (
@@ -9,6 +10,7 @@ export default function Navbar() {
           <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Home</NavLink>
           <NavLink to="/favorites" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Favorites</NavLink>
         </nav>
+        <ThemeToggle />
       </div>
     </header>
   );
