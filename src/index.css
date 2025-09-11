@@ -366,3 +366,46 @@ main h2 + .grid{ margin-bottom:.75rem }
   .md\:grid-cols-4{ grid-template-columns:repeat(4,minmax(0,1fr)) }
   .md\:grid-cols-5{ grid-template-columns:repeat(5,minmax(0,1fr)) }
 }
+
+/* --- Recipe card hardening --- */
+.recipe-card{
+  display:flex; flex-direction:column; height:100%;
+}
+.recipe-card .img-button{
+  position:relative; border-radius:16px; overflow:hidden; width:100%;
+  aspect-ratio: 4 / 3; background:var(--panel);
+}
+.recipe-card .img-button img{
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+.img-skeleton{
+  position:absolute; inset:0; background:linear-gradient(90deg,#e9ecef20,#e9ecef60,#e9ecef20);
+  animation:skeletonPulse 1.2s linear infinite; pointer-events:none; /* не блокирует клик */
+}
+@keyframes skeletonPulse{
+  0%{background-position:-200px 0}
+  100%{background-position: calc(200px + 100%) 0}
+}
+.recipe-card .card-body{ margin-top:.75rem; }
+.recipe-card .title{ font-weight:600; line-height:1.25; margin:.25rem 0 .5rem 0; }
+.recipe-card .tags{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.chip{
+  padding:.25rem .5rem; font-size:.85rem; border-radius:20px;
+  background:var(--chip-bg, rgba(0,0,0,.06)); color:var(--muted);
+}
+.recipe-card .card-actions{
+  margin-top:auto; display:grid; grid-template-columns:1fr 1fr; gap:.75rem;
+}
+.btn-ghost{
+  width:100%; padding:.55rem .75rem; border-radius:12px; border:1px solid rgba(0,0,0,.12);
+  background:var(--panel); color:var(--app); transition:transform .05s, box-shadow .2s, background .2s;
+}
+.btn-ghost:hover{ box-shadow:0 4px 16px rgba(0,0,0,.08) }
+.btn-ghost:active{ transform:translateY(1px) }
+.btn-ghost.is-saved{
+  background:rgba(8,185,119,.12); border-color:rgba(8,185,119,.25); color:#07a06e;
+  font-weight:600;
+}
+
+/* для доступности */
+.focus-outline:focus-visible{ outline:2px solid rgba(99,102,241,.6); outline-offset:2px }
