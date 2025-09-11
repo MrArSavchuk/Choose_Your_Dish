@@ -1,60 +1,45 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
+import RecipeModal from "./RecipeModal.jsx";
 
-function buildSourceUrl(recipe) {
-  if (recipe.sourceUrl) return recipe.sourceUrl;
-  if (recipe.href) return recipe.href;
-  return `https://www.google.com/search?q=${encodeURIComponent(recipe.title || "")} recipe`;
-}
-
-export default function RecipeCard({ recipe, onOpen }) {
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const saved = isFavorite(recipe.id);
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  const tags = useMemo(() => {
-    const list = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
-    return list.slice(0, 5);
-  }, [recipe]);
+export default function RecipeCard({ recipe }) {
+  const { isFavorite, add, remove } = useFavorites();
+  const fav = isFavorite(recipe.id);
+  const [open, setOpen] = useState(false);
 
   return (
-    <article className="card">
-      <button className="card-img-wrap" onClick={() => onOpen?.(recipe)} aria-label="Open details">
-        <img
-          className="card-img"
-          src={recipe.image}
-          alt={recipe.title}
-          loading="lazy"
-          onLoad={() => setImgLoaded(true)}
-        />
-        {!imgLoaded && <div className="img-skeleton" />}
-      </button>
+    <>
+      <article className="card recipe">
+        <button className="thumb" onClick={()=>setOpen(true)}>
+          <img src={recipe.image} alt={recipe.title} loading="lazy" />
+        </button>
 
-      <div className="card-body">
-        <h3 className="card-title">{recipe.title}</h3>
+        <div className="recipe-title">{recipe.title}</div>
+
         <div className="chips">
-          {tags.map((t, i) => (
-            <span key={`${recipe.id}-tag-${i}`} className="chip">{t}</span>
+          {recipe.ingredients.slice(0,4).map((i,idx)=>(
+            <span key={idx} className="badge">{i}</span>
           ))}
         </div>
-      </div>
 
-      <div className="card-footer">
-        <button
-          className={`btn ${saved ? "btn-success" : "btn-primary"}`}
-          onClick={() => toggleFavorite(recipe)}
-        >
-          {saved ? "Saved" : "Save"}
-        </button>
-        <a
-          className="btn btn-ghost"
-          href={buildSourceUrl(recipe)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open
-        </a>
-      </div>
-    </article>
+        <div className="actions">
+          {!fav ? (
+            <button className="btn btn-primary" style={{ flex:1 }} onClick={()=>add(recipe)}>Save</button>
+          ) : (
+            <button className="btn btn-soft" style={{ flex:1 }} onClick={()=>remove(recipe.id)}>Saved</button>
+          )}
+
+          {recipe.source ? (
+            <a className="btn btn-soft" style={{ flex:1 }} href={recipe.source} target="_blank" rel="noreferrer">Open</a>
+          ) : (
+            <button className="btn btn-soft" style={{ flex:1 }} onClick={()=>setOpen(true)}>Open</button>
+          )}
+        </div>
+      </article>
+
+      {open && (
+        <RecipeModal recipe={recipe} onClose={()=>setOpen(false)} onSave={()=>add(recipe)} />
+      )}
+    </>
   );
 }

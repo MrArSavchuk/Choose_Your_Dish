@@ -1,47 +1,34 @@
-import { useMemo } from "react";
-import { useFavorites } from "../context/FavoritesContext.jsx";
+import { useEffect, useState } from "react";
 import RecipeCard from "../components/RecipeCard.jsx";
+import { useFavorites } from "../context/FavoritesContext.jsx";
+import { randomRecipes } from "../services/api.js";
 
 export default function Favorites() {
-  const { favorites, clearFavorites, suggest } = useFavorites();
+  const { favorites, clear } = useFavorites();
+  const [suggest, setSuggest] = useState(null);
 
-  const suggestion = useMemo(() => suggest(), [suggest]);
+  useEffect(() => { randomRecipes(1).then((x)=>setSuggest(x[0])); }, []);
 
   return (
-    <main className="container page">
-      <h1 className="page-title">Favorites</h1>
+    <section>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:24}}>
+        <h1>Favorites</h1>
+        {favorites.length>0 && <button className="btn btn-soft" onClick={clear}>Clear all</button>}
+      </div>
 
-      <section className="section">
-        <h2 className="section-title">You might like</h2>
-        <div className="grid">
-          {suggestion && (
-            <RecipeCard
-              key={`suggest-${suggestion.id}`}
-              recipe={suggestion}
-              onOpen={() => {}}
-            />
-          )}
+      <h2>You might like</h2>
+      <div style={{maxWidth:420}}>
+        {suggest ? <RecipeCard recipe={suggest} /> : <div className="card skeleton" style={{height:250}}/>}
+      </div>
+
+      <h2>Saved recipes</h2>
+      {favorites.length===0 ? (
+        <p style={{opacity:.7}}>No saved recipes yet.</p>
+      ) : (
+        <div className="grid grid-4">
+          {favorites.map((r)=> <RecipeCard key={r.id} recipe={r} />)}
         </div>
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Saved recipes</h2>
-          {favorites.length > 0 && (
-            <button className="btn btn-danger" onClick={clearFavorites}>Clear all</button>
-          )}
-        </div>
-
-        {favorites.length === 0 ? (
-          <p className="muted">No saved recipes yet.</p>
-        ) : (
-          <div className="grid">
-            {favorites.map((r) => (
-              <RecipeCard key={r.id} recipe={r} onOpen={() => {}} />
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+      )}
+    </section>
   );
 }

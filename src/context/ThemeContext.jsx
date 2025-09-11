@@ -1,24 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const ThemeContext = createContext();
+const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem("cyd_theme");
-    if (saved === "light" || saved === "dark") return saved;
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-  });
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("cyd_theme") || "dark"
+  );
 
   useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("cyd_theme", theme);
-    document.body.classList.toggle("light", theme === "light");
   }, [theme]);
 
   const value = useMemo(
     () => ({
       theme,
-      toggle: () => setTheme((t) => (t === "light" ? "dark" : "light")),
-      setTheme,
+      toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark"))
     }),
     [theme]
   );
@@ -27,5 +24,7 @@ export function ThemeProvider({ children }) {
 }
 
 export function useTheme() {
-  return useContext(ThemeContext);
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used inside ThemeProvider");
+  return ctx;
 }
