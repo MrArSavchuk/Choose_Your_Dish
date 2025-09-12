@@ -26,8 +26,6 @@ export default function RecipeModal({ recipe, onClose }) {
   if (!recipe) return null;
 
   const ingredients = useMemo(() => buildIngredients(recipe), [recipe]);
-  const saved = isFavorite(recipe.idMeal);
-
   const steps = useMemo(() => {
     const raw = recipe.strInstructions || "";
     return raw
@@ -42,30 +40,29 @@ export default function RecipeModal({ recipe, onClose }) {
       ? `https://www.youtube.com/watch?v=${(recipe.strYoutube.split("v=")[1] || "").split("&")[0]}`
       : "");
 
+  const saved = isFavorite(recipe.idMeal);
+  const hasInfo = ingredients.length > 0 || steps.length > 0;
+
   return (
     <div className="modal-overlay" onClick={onClose} role="button" tabIndex={-1}>
-      <div
-        className="modal-card"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="recipe-title"
-      >
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
 
         <div className="modal-media">
           {!imgLoaded && <div className="img-skeleton" />}
           <img
-            src={recipe.strMealThumb}
-            alt={recipe.strMeal}
+            src={recipe.strMealThumb || ""}
+            alt={recipe.strMeal || "Recipe"}
             className={`modal-img ${imgLoaded ? "show" : ""}`}
             loading="lazy"
+            decoding="async"
+            fetchpriority="low"
             onLoad={() => setImgLoaded(true)}
           />
         </div>
 
-        <div className="modal-content">
-          <h2 id="recipe-title" className="modal-title">{recipe.strMeal}</h2>
+        <div className="modal-body">
+          <h2 className="modal-title">{recipe.strMeal || "Untitled recipe"}</h2>
 
           {ingredients.length > 0 && (
             <>
@@ -89,6 +86,10 @@ export default function RecipeModal({ recipe, onClose }) {
             </>
           )}
 
+          {!hasInfo && (
+            <p className="muted">No details provided for this recipe.</p>
+          )}
+
           <div className="modal-actions">
             <button
               className={`btn ${saved ? "btn-secondary" : "btn-primary"}`}
@@ -98,12 +99,7 @@ export default function RecipeModal({ recipe, onClose }) {
             </button>
 
             {sourceUrl && (
-              <a
-                className="btn btn-ghost"
-                href={sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="btn btn-ghost" href={sourceUrl} target="_blank" rel="noopener noreferrer">
                 Open source
               </a>
             )}
