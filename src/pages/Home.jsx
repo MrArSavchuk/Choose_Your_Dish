@@ -2,45 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 import RecipeCard from "../components/RecipeCard.jsx";
 import RecipeModal from "../components/RecipeModal.jsx";
+import { searchRecipes, randomMeals } from "../services/api.js";
 
 const pick = (arr, n) => arr.slice().sort(() => 0.5 - Math.random()).slice(0, n);
 const norm = (s) => String(s || "").trim().toLowerCase();
 
-async function fetchJSON(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error("Network");
-  return r.json();
-}
-
-function getMealIngredients(meal) {
-  const out = [];
-  for (let i = 1; i <= 20; i++) {
-    const ing = meal[`strIngredient${i}`];
-    const meas = meal[`strMeasure${i}`];
-    if (ing && String(ing).trim()) out.push(`${ing} ${meas || ""}`.trim());
-  }
-  return out;
-}
-
-async function lookupMeal(id) {
-  const j = await fetchJSON(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
-  return j.meals?.[0] || null;
-}
-
-async function filterByIngredientSingle(ing) {
-  if (!ing) return [];
-  const j = await fetchJSON(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ing)}`);
-  return Array.isArray(j.meals) ? j.meals : [];
-}
-
-function intersectIds(a, b) {
-  const setB = new Set(b.map((m) => m.idMeal));
-  return a.filter((m) => setB.has(m.idMeal));
-}
-
 export default function Home() {
   const fav = useFavorites();
 
+  const [random, setRandom] = useState([]);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -55,70 +25,27 @@ export default function Home() {
     let ignore = false;
     (async () => {
       try {
-        setLoading(true);
-        const seed = ["pork", "beef", "chicken", "salad"][Math.floor(Math.random() * 4)];
-        const j = await fetchJSON(`https://www.themealdb.com/api/json/v1/1/search.php?s=${seed}`);
-        const base = Array.isArray(j.meals) ? j.meals : [];
-        if (!ignore) setList(pick(base, 10));
+        const seed = await randomMeals(7);
+        if (!ignore) setRandom(pick(seed, 5));
       } catch {
-        if (!ignore) setList([]);
-      } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setRandom([]);
       }
     })();
     return () => { ignore = true; };
   }, []);
 
-  async function handleApply(e) {
+  async function apply(e) {
     e?.preventDefault?.();
-    const name = norm(q);
-    const inc = norm(include);
-    const exc = norm(exclude);
-
+    const payload = {
+      query: q,
+      include: include.split(",").map((s)=>norm(s)).filter(Boolean),
+      exclude: exclude.split(",").map((s)=>norm(s)).filter(Boolean),
+      limit: 10
+    };
     setLoading(true);
     try {
-      let baseFull = [];
-
-      if (name) {
-        const j = await fetchJSON(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(name)}`);
-        baseFull = Array.isArray(j.meals) ? j.meals : [];
-      }
-
-      let byInc = [];
-      if (inc) {
-        const parts = inc.split(",").map((s) => norm(s)).filter(Boolean);
-        if (parts.length) {
-          let pool = null;
-          for (const ing of parts) {
-            const one = await filterByIngredientSingle(ing);
-            pool = pool === null ? one : intersectIds(pool, one);
-          }
-          byInc = pool || [];
-        }
-      }
-
-      if (!name && inc && byInc.length) {
-        const ids = byInc.map((m) => m.idMeal).slice(0, 20);
-        const details = await Promise.all(ids.map((id) => lookupMeal(id)));
-        baseFull = details.filter(Boolean);
-      }
-
-      if (name && inc && byInc.length) {
-        const idsInc = new Set(byInc.map((m) => m.idMeal));
-        baseFull = baseFull.filter((m) => idsInc.has(m.idMeal));
-      }
-
-      if (exc) {
-        const bad = exc.split(",").map((s) => norm(s)).filter(Boolean);
-        if (bad.length) {
-          baseFull = baseFull.filter((meal) => {
-            const ings = getMealIngredients(meal).join(" ").toLowerCase();
-            return !bad.some((b) => ings.includes(b));
-          });
-        }
-      }
-
-      setList(baseFull.slice(0, 10));
+      const data = await searchRecipes(payload);
+      setList(data);
     } catch {
       setList([]);
     } finally {
@@ -126,91 +53,71 @@ export default function Home() {
     }
   }
 
-  function handleReset() {
+  async function reset() {
     setQ(""); setInclude(""); setExclude("");
-    setLoading(true);
-    (async () => {
-      try {
-        const j = await fetchJSON(`https://www.themealdb.com/api/json/v1/1/search.php?s=`);
-        const base = Array.isArray(j.meals) ? j.meals : [];
-        setList(pick(base, 10));
-      } catch {
-        setList([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    setList([]);
   }
 
-  const open = (r) => { setActive(r); setModalOpen(true); };
-  const close = () => { setModalOpen(false); setActive(null); };
-  const isSaved = (r) => fav?.isFavorite?.(r?.idMeal || r?.id);
+  const showRandom = useMemo(() => list.length === 0, [list]);
+  const data = useMemo(() => (showRandom ? random : list), [showRandom, random, list]);
 
-  const data = useMemo(() => list || [], [list]);
+  const open = (r) => { setActive(r); setModalOpen(true); };
+  const close = () => { setActive(null); setModalOpen(false); };
+  const isSaved = (r) => fav?.isFavorite?.(r?.idMeal || r?.id);
 
   return (
     <main className="container">
       <h1>Discover today</h1>
 
-      <form className="filters card" onSubmit={handleApply}>
-        <div className="field">
-          <label>Search in title</label>
-          <input
-            className="input"
-            placeholder="pasta, chicken..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+      {showRandom && (
+        <div className="grid grid-5">
+          {random.length
+            ? random.map((r)=>(
+                <RecipeCard
+                  key={r.idMeal}
+                  recipe={r}
+                  onOpen={open}
+                  onToggleSave={(x)=>fav?.toggleFavorite?.(x)}
+                  isSaved={isSaved(r)}
+                />
+              ))
+            : Array.from({length:5}).map((_,i)=><div key={i} className="card skeleton" style={{height:250}}/>)}
         </div>
+      )}
 
+      <form className="card" style={{ marginTop: 18, display:"grid", gap:12, gridTemplateColumns:"1fr 1fr 1fr auto" }} onSubmit={apply}>
         <div className="field">
-          <label>Include ingredients</label>
-          <input
-            className="input"
-            placeholder="tomato, basil"
-            value={include}
-            onChange={(e) => setInclude(e.target.value)}
-          />
+          <div style={{ fontSize:12, color:"var(--muted)" }}>Search in title</div>
+          <input className="input" value={q} onChange={(e)=>setQ(e.target.value)} placeholder="pasta, chicken..." />
         </div>
-
         <div className="field">
-          <label>Exclude ingredients</label>
-          <input
-            className="input"
-            placeholder="nuts, gluten"
-            value={exclude}
-            onChange={(e) => setExclude(e.target.value)}
-          />
+          <div style={{ fontSize:12, color:"var(--muted)" }}>Include ingredients</div>
+          <input className="input" value={include} onChange={(e)=>setInclude(e.target.value)} placeholder="tomato, basil" />
         </div>
-
-        <div className="field btns">
-          <button type="submit" className="btn btn-primary" disabled={loading}>Apply</button>
-          <button type="button" className="btn btn-soft" onClick={handleReset} disabled={loading}>Reset</button>
+        <div className="field">
+          <div style={{ fontSize:12, color:"var(--muted)" }}>Exclude ingredients</div>
+          <input className="input" value={exclude} onChange={(e)=>setExclude(e.target.value)} placeholder="nuts, gluten" />
+        </div>
+        <div style={{ display:"flex", gap:10, alignItems:"end" }}>
+          <button className="btn btn-primary" type="submit" disabled={loading}>Apply</button>
+          <button className="btn btn-soft" type="button" onClick={reset} disabled={loading}>Reset</button>
         </div>
       </form>
 
       <div className="grid grid-5" style={{ marginTop: 18 }}>
         {loading
-          ? Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="card recipe">
-                <div className="thumb skeleton" />
-                <div className="skeleton" style={{ height: 18, margin: "10px 0 6px", borderRadius: 8 }} />
-                <div className="skeleton" style={{ height: 14, width: "70%", borderRadius: 8 }} />
-                <div className="actions" style={{ marginTop: "auto" }}>
-                  <div className="skeleton" style={{ height: 40, width: 90, borderRadius: 10 }} />
-                  <div className="skeleton" style={{ height: 40, width: 90, borderRadius: 10 }} />
-                </div>
-              </div>
-            ))
-          : data.map((r) => (
-              <RecipeCard
-                key={r.idMeal}
-                recipe={r}
-                onOpen={open}
-                onToggleSave={(x) => fav?.toggleFavorite?.(x)}
-                isSaved={isSaved(r)}
-              />
-            ))}
+          ? Array.from({length:10}).map((_,i)=><div key={i} className="card skeleton" style={{height:250}}/>)
+          : !showRandom
+            ? data.map((r)=>(
+                <RecipeCard
+                  key={r.idMeal}
+                  recipe={r}
+                  onOpen={open}
+                  onToggleSave={(x)=>fav?.toggleFavorite?.(x)}
+                  isSaved={isSaved(r)}
+                />
+              ))
+            : null}
       </div>
 
       <RecipeModal open={modalOpen} onClose={close} recipe={active} />

@@ -1,31 +1,75 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getMealById } from "../services/api.js";
+import { useFavorites } from "../context/FavoritesContext.jsx";
+
+function normalize(meal) {
+  if (!meal) return { id:"", title:"Untitled recipe", image:"", ingredients:[], instructions:[], source:"" };
+  const id = meal.idMeal || meal.id || "";
+  const title = meal.strMeal || meal.title || "Untitled recipe";
+  const image = meal.strMealThumb || meal.image || "";
+  const source = meal.strSource || meal.source || meal.strYoutube || "";
+  const ingredients = [];
+  for (let i=1;i<=20;i++){
+    const ing = meal[`strIngredient${i}`];
+    const meas = meal[`strMeasure${i}`];
+    if (ing && String(ing).trim()) ingredients.push(`${ing}${meas?` ${meas}`:""}`.trim());
+  }
+  const instructions = String(meal.strInstructions || meal.instructions || "")
+    .split(/\r?\n+/).map(s=>s.trim()).filter(Boolean);
+  return { id, title, image, source, ingredients, instructions, area: meal.strArea || "", category: meal.strCategory || "" };
+}
 
 export default function RecipeModal({ open, onClose, recipe }) {
+  const [view, setView] = useState(normalize(recipe));
+  const [loading, setLoading] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const fav = useFavorites();
 
-  useEffect(() => { setImgLoaded(false); }, [recipe]);
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setImgLoaded(false);
+    const base = normalize(recipe);
+    setView(base);
+    const need = (!base.instructions.length || !base.ingredients.length) && base.id;
+    let ignore = false;
+    async function hydrate() {
+      if (!need) return;
+      setLoading(true);
+      const full = await getMealById(base.id);
+      if (!ignore && full) setView(normalize(full));
+      setLoading(false);
+    }
+    hydrate();
+    return () => { ignore = true; };
+  }, [open, recipe]);
+
+  const chips = useMemo(() => {
+    const a = [];
+    if (view.area) a.push(view.area);
+    if (view.category) a.push(view.category);
+    return a;
+  }, [view]);
 
   if (!open) return null;
 
-  const title = recipe?.strMeal || recipe?.title || "Untitled recipe";
-  const img = recipe?.strMealThumb || recipe?.image || "";
-  const instructions = useMemo(() => {
-    const raw = recipe?.strInstructions || recipe?.instructions || "";
-    return String(raw).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  }, [recipe]);
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-card" onClick={(e)=>e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="modal-media">
           {!imgLoaded && <div className="img-skeleton" />}
-          {img && (
+          {view.image && (
             <img
               className={`modal-img ${imgLoaded ? "show" : ""}`}
-              src={img}
-              alt={title}
+              src={view.image}
+              alt={view.title}
               onLoad={() => setImgLoaded(true)}
             />
           )}
@@ -33,44 +77,45 @@ export default function RecipeModal({ open, onClose, recipe }) {
 
         <div className="modal-content">
           <div>
-            <div className="modal-title">{title}</div>
-            <div className="chips" style={{ marginTop: 8 }}>
-              {recipe?.strArea && <span className="chip">{recipe.strArea}</span>}
-              {recipe?.strCategory && <span className="chip">{recipe.strCategory}</span>}
-            </div>
+            <div className="modal-title">{view.title}</div>
+            {chips.length ? (
+              <div className="chips" style={{ marginTop: 8 }}>
+                {chips.map((c, i) => <span key={`${c}-${i}`} className="chip">{c}</span>)}
+              </div>
+            ) : null}
           </div>
 
-          <div>
-            <h2>Ingredients</h2>
-            <div className="chips">
-              {Array.from({ length: 20 }).map((_, i) => {
-                const idx = i + 1;
-                const ing = recipe?.[`strIngredient${idx}`];
-                const meas = recipe?.[`strMeasure${idx}`];
-                const txt = [ing, meas].filter(Boolean).join(" ");
-                return txt ? <span key={idx} className="chip">{txt}</span> : null;
-              })}
+          {view.ingredients.length ? (
+            <div>
+              <div className="modal-subtitle">Ingredients</div>
+              <div className="chips">
+                {view.ingredients.map((s, i)=> <span key={`${i}-${s}`} className="chip">{s}</span>)}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div>
-            <h2>Instructions</h2>
-            {instructions.length ? (
-              <ol className="modal-instructions">
-                {instructions.map((line, i) => <li key={i}>{line}</li>)}
-              </ol>
-            ) : (
-              <p className="modal-subtitle">No details provided for this recipe.</p>
-            )}
+            <div className="modal-subtitle">Instructions</div>
+            <ol className="modal-instructions">
+              {loading && !view.instructions.length
+                ? Array.from({length:6}).map((_,i)=><li key={i} className="skeleton" style={{height:14,borderRadius:6}}/>)
+                : view.instructions.length
+                  ? view.instructions.map((line,i)=><li key={i}>{line}</li>)
+                  : <li>No details provided for this recipe.</li>}
+            </ol>
           </div>
 
           <div className="modal-actions">
-            <button className="btn btn-primary" onClick={onClose}>Close</button>
-            {recipe?.strSource && (
-              <button className="btn btn-secondary" onClick={() => window.open(recipe.strSource, "_blank", "noopener,noreferrer")}>
-                Open source
-              </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => fav?.toggleFavorite?.(recipe)}
+            >
+              {fav?.isFavorite?.(view.id) ? "Saved" : "Save"}
+            </button>
+            {view.source && (
+              <a className="btn btn-soft" href={view.source} target="_blank" rel="noreferrer">Open source</a>
             )}
+            <button className="btn btn-soft" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>

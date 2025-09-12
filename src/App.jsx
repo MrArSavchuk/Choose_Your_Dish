@@ -24,12 +24,17 @@ export default function App() {
         <div className="container navbar">
           <div className="brand">Choose Your Dish</div>
           <nav className="nav">
-            <NavLink to="/" end className={({isActive}) => isActive ? "active" : undefined}>Home</NavLink>
-            <NavLink to="/favorites" className={({isActive}) => isActive ? "active" : undefined}>Favorites</NavLink>
+            <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
+              Home
+            </NavLink>
+            <NavLink to="/favorites" className={({ isActive }) => (isActive ? "active" : undefined)}>
+              Favorites
+            </NavLink>
             <ThemeToggle />
           </nav>
         </div>
       </header>
+
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/favorites" element={<Favorites />} />
