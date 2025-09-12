@@ -1,28 +1,40 @@
-import { Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar.jsx";
+import React, { useEffect, useState } from "react";
+import { NavLink, Routes, Route } from "react-router-dom";
+import { FavoritesProvider } from "./context/FavoritesContext.jsx";
 import Home from "./pages/Home.jsx";
 import Favorites from "./pages/Favorites.jsx";
-import NotFound from "./pages/NotFound.jsx";
-import { ThemeProvider } from "./context/ThemeContext.jsx";
-import { FavoritesProvider } from "./context/FavoritesContext.jsx";
+
+function ThemeToggle() {
+  const [t, setT] = useState(() => localStorage.getItem("theme") || "dark");
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", t);
+    localStorage.setItem("theme", t);
+  }, [t]);
+  return (
+    <button className="btn btn-soft theme-btn" onClick={() => setT(t === "dark" ? "light" : "dark")}>
+      {t === "dark" ? "☀️" : "🌙"}
+    </button>
+  );
+}
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <FavoritesProvider>
-        <header className="header">
-          <div className="container navbar">
-            <Navbar />
-          </div>
-        </header>
-        <main className="container">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/favorites" element={<Favorites />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-      </FavoritesProvider>
-    </ThemeProvider>
+    <FavoritesProvider>
+      <header className="header shadow-soft">
+        <div className="container navbar">
+          <div className="brand">Choose Your Dish</div>
+          <nav className="nav">
+            <NavLink to="/" end className={({isActive}) => isActive ? "active" : undefined}>Home</NavLink>
+            <NavLink to="/favorites" className={({isActive}) => isActive ? "active" : undefined}>Favorites</NavLink>
+            <ThemeToggle />
+          </nav>
+        </div>
+      </header>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="*" element={<Home />} />
+      </Routes>
+    </FavoritesProvider>
   );
 }

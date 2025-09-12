@@ -1,76 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { getMealById } from '../services/themealdb';
-import { useFavorites } from '../context/FavoritesContext.jsx';
-
-function normalizeRecipe(base) {
-  if (!base) return { title: 'Untitled recipe', image: '', ingredients: [], instructions: [], source: '' };
-  const ingredients = [];
-  for (let i = 1; i <= 20; i += 1) {
-    const ing = base[`strIngredient${i}`];
-    const ms = base[`strMeasure${i}`];
-    if (ing && ing.trim()) {
-      const line = `${ing}`.trim() + (ms && `${ms}`.trim() ? ` ${ms}` : '');
-      ingredients.push(line.trim());
-    }
-  }
-  const instructionsText = base.strInstructions || '';
-  const instructions = instructionsText
-    ? instructionsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
-    : [];
-
-  return {
-    id: base.idMeal || base.id || '',
-    title: base.strMeal || base.title || 'Untitled recipe',
-    image: base.strMealThumb || base.image || '',
-    area: base.strArea || base.area || '',
-    tags: (base.strTags ? base.strTags.split(',') : base.tags || []).filter(Boolean),
-    ingredients: base.ingredients && base.ingredients.length ? base.ingredients : ingredients,
-    instructions: base.instructions && base.instructions.length ? base.instructions : instructions,
-    source: base.strSource || base.source || base.strYoutube || ''
-  };
-}
+import React, { useEffect, useMemo, useState } from "react";
 
 export default function RecipeModal({ open, onClose, recipe }) {
-  const [full, setFull] = useState(() => normalizeRecipe(recipe));
-  const [loading, setLoading] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const favApi = useFavorites?.();
-  const isFav = favApi?.isFavorite?.(full.id) || false;
-
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    setImgLoaded(false);
-    const base = normalizeRecipe(recipe);
-    setFull(base);
-    const needFetch = (!base.instructions.length || !base.ingredients.length) && base.id;
-    let ignore = false;
-    async function load() {
-      if (!needFetch) return;
-      setLoading(true);
-      const meal = await getMealById(base.id);
-      if (!ignore && meal) {
-        setFull(normalizeRecipe(meal));
-      }
-      setLoading(false);
-    }
-    load();
-    return () => { ignore = true; };
-  }, [open, recipe]);
-
-  const chips = useMemo(() => {
-    const zone = [];
-    if (full.area) zone.push(full.area);
-    return [...zone, ...full.tags];
-  }, [full]);
+  useEffect(() => { setImgLoaded(false); }, [recipe]);
 
   if (!open) return null;
+
+  const title = recipe?.strMeal || recipe?.title || "Untitled recipe";
+  const img = recipe?.strMealThumb || recipe?.image || "";
+  const instructions = useMemo(() => {
+    const raw = recipe?.strInstructions || recipe?.instructions || "";
+    return String(raw).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  }, [recipe]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -79,73 +21,56 @@ export default function RecipeModal({ open, onClose, recipe }) {
 
         <div className="modal-media">
           {!imgLoaded && <div className="img-skeleton" />}
-          {full.image ? (
+          {img && (
             <img
-              className={`modal-img ${imgLoaded ? 'show' : ''}`}
-              src={full.image}
-              alt={full.title}
+              className={`modal-img ${imgLoaded ? "show" : ""}`}
+              src={img}
+              alt={title}
               onLoad={() => setImgLoaded(true)}
-              loading="eager"
             />
-          ) : null}
+          )}
         </div>
 
         <div className="modal-content">
-          <div style={{ display: 'grid', gap: 8 }}>
-            <div className="modal-title">{full.title}</div>
-            {chips.length ? (
-              <div className="chips">
-                {chips.map((c, i) => <span key={`${c}-${i}`} className="chip">{c}</span>)}
-              </div>
-            ) : null}
-          </div>
-
-          <div style={{ display: 'grid', gap: 12 }}>
-            {full.ingredients.length ? (
-              <div>
-                <div className="modal-subtitle">Ingredients</div>
-                <div className="chips">
-                  {full.ingredients.map((ing, i) => (
-                    <span key={`${ing}-${i}`} className="chip">{ing}</span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div>
-              <div className="modal-subtitle">Instructions</div>
-              <ol className="modal-instructions">
-                {loading && !full.instructions.length ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <li key={i} className="skeleton" style={{ height: 14, borderRadius: 6 }} />
-                  ))
-                ) : full.instructions.length ? (
-                  full.instructions.map((step, i) => <li key={i}>{step}</li>)
-                ) : (
-                  <li>No details provided for this recipe.</li>
-                )}
-              </ol>
+          <div>
+            <div className="modal-title">{title}</div>
+            <div className="chips" style={{ marginTop: 8 }}>
+              {recipe?.strArea && <span className="chip">{recipe.strArea}</span>}
+              {recipe?.strCategory && <span className="chip">{recipe.strCategory}</span>}
             </div>
           </div>
 
+          <div>
+            <h2>Ingredients</h2>
+            <div className="chips">
+              {Array.from({ length: 20 }).map((_, i) => {
+                const idx = i + 1;
+                const ing = recipe?.[`strIngredient${idx}`];
+                const meas = recipe?.[`strMeasure${idx}`];
+                const txt = [ing, meas].filter(Boolean).join(" ");
+                return txt ? <span key={idx} className="chip">{txt}</span> : null;
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h2>Instructions</h2>
+            {instructions.length ? (
+              <ol className="modal-instructions">
+                {instructions.map((line, i) => <li key={i}>{line}</li>)}
+              </ol>
+            ) : (
+              <p className="modal-subtitle">No details provided for this recipe.</p>
+            )}
+          </div>
+
           <div className="modal-actions">
-            <button
-              className="btn-modal btn-primary"
-              onClick={() => favApi?.toggleFavorite?.(full)}
-            >
-              {isFav ? 'Saved' : 'Save'}
-            </button>
-            {full.source ? (
-              <a
-                className="btn-modal btn-secondary"
-                href={full.source}
-                target="_blank"
-                rel="noreferrer"
-              >
+            <button className="btn btn-primary" onClick={onClose}>Close</button>
+            {recipe?.strSource && (
+              <button className="btn btn-secondary" onClick={() => window.open(recipe.strSource, "_blank", "noopener,noreferrer")}>
                 Open source
-              </a>
-            ) : null}
-            <button className="btn-modal btn-ghost" onClick={onClose}>Close</button>
+              </button>
+            )}
           </div>
         </div>
       </div>
