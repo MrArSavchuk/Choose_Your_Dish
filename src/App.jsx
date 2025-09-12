@@ -34,7 +34,6 @@ export default function App() {
           </nav>
         </div>
       </header>
-
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/favorites" element={<Favorites />} />
