@@ -25,8 +25,8 @@ export default function Home() {
     let ignore = false;
     (async () => {
       try {
-        const seed = await randomMeals(7);
-        if (!ignore) setRandom(pick(seed, 5));
+        const seed = await randomMeals(12);
+        if (!ignore) setRandom(pick(seed, 10));
       } catch {
         if (!ignore) setRandom([]);
       }
@@ -38,8 +38,8 @@ export default function Home() {
     e?.preventDefault?.();
     const payload = {
       query: q,
-      include: include.split(",").map((s)=>norm(s)).filter(Boolean),
-      exclude: exclude.split(",").map((s)=>norm(s)).filter(Boolean),
+      include: include.split(",").map((s) => norm(s)).filter(Boolean),
+      exclude: exclude.split(",").map((s) => norm(s)).filter(Boolean),
       limit: 10
     };
     setLoading(true);
@@ -72,33 +72,33 @@ export default function Home() {
       {showRandom && (
         <div className="grid grid-5">
           {random.length
-            ? random.map((r)=>(
-                <RecipeCard
-                  key={r.idMeal}
-                  recipe={r}
-                  onOpen={open}
-                  onToggleSave={(x)=>fav?.toggleFavorite?.(x)}
-                  isSaved={isSaved(r)}
-                />
-              ))
-            : Array.from({length:5}).map((_,i)=><div key={i} className="card skeleton" style={{height:250}}/>)}
+            ? random.map((r) => (
+              <RecipeCard
+                key={r.idMeal}
+                recipe={r}
+                onOpen={open}
+                onToggleSave={(x) => fav?.toggleFavorite?.(x)}
+                isSaved={isSaved(r)}
+              />
+            ))
+            : Array.from({ length: 10 }).map((_, i) => <div key={i} className="card skeleton" style={{ height: 250 }} />)}
         </div>
       )}
 
-      <form className="card" style={{ marginTop: 18, display:"grid", gap:12, gridTemplateColumns:"1fr 1fr 1fr auto" }} onSubmit={apply}>
+      <form className="card" style={{ marginTop: 18, display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr auto" }} onSubmit={apply}>
         <div className="field">
-          <div style={{ fontSize:12, color:"var(--muted)" }}>Search in title</div>
-          <input className="input" value={q} onChange={(e)=>setQ(e.target.value)} placeholder="pasta, chicken..." />
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Search in title</div>
+          <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="pasta, chicken..." />
         </div>
         <div className="field">
-          <div style={{ fontSize:12, color:"var(--muted)" }}>Include ingredients</div>
-          <input className="input" value={include} onChange={(e)=>setInclude(e.target.value)} placeholder="tomato, basil" />
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Include ingredients</div>
+          <input className="input" value={include} onChange={(e) => setInclude(e.target.value)} placeholder="tomato, basil" />
         </div>
         <div className="field">
-          <div style={{ fontSize:12, color:"var(--muted)" }}>Exclude ingredients</div>
-          <input className="input" value={exclude} onChange={(e)=>setExclude(e.target.value)} placeholder="nuts, gluten" />
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Exclude ingredients</div>
+          <input className="input" value={exclude} onChange={(e) => setExclude(e.target.value)} placeholder="nuts, gluten" />
         </div>
-        <div style={{ display:"flex", gap:10, alignItems:"end" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "end" }}>
           <button className="btn btn-primary" type="submit" disabled={loading}>Apply</button>
           <button className="btn btn-soft" type="button" onClick={reset} disabled={loading}>Reset</button>
         </div>
@@ -106,17 +106,17 @@ export default function Home() {
 
       <div className="grid grid-5" style={{ marginTop: 18 }}>
         {loading
-          ? Array.from({length:10}).map((_,i)=><div key={i} className="card skeleton" style={{height:250}}/>)
+          ? Array.from({ length: 10 }).map((_, i) => <div key={i} className="card skeleton" style={{ height: 250 }} />)
           : !showRandom
-            ? data.map((r)=>(
-                <RecipeCard
-                  key={r.idMeal}
-                  recipe={r}
-                  onOpen={open}
-                  onToggleSave={(x)=>fav?.toggleFavorite?.(x)}
-                  isSaved={isSaved(r)}
-                />
-              ))
+            ? data.map((r) => (
+              <RecipeCard
+                key={r.idMeal}
+                recipe={r}
+                onOpen={open}
+                onToggleSave={(x) => fav?.toggleFavorite?.(x)}
+                isSaved={isSaved(r)}
+              />
+            ))
             : null}
       </div>
 

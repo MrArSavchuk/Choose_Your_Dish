@@ -3,19 +3,19 @@ import { getMealById } from "../services/api.js";
 import { useFavorites } from "../context/FavoritesContext.jsx";
 
 function normalize(meal) {
-  if (!meal) return { id:"", title:"Untitled recipe", image:"", ingredients:[], instructions:[], source:"" };
+  if (!meal) return { id: "", title: "Untitled recipe", image: "", ingredients: [], instructions: [], source: "" };
   const id = meal.idMeal || meal.id || "";
   const title = meal.strMeal || meal.title || "Untitled recipe";
   const image = meal.strMealThumb || meal.image || "";
   const source = meal.strSource || meal.source || meal.strYoutube || "";
   const ingredients = [];
-  for (let i=1;i<=20;i++){
+  for (let i = 1; i <= 20; i++) {
     const ing = meal[`strIngredient${i}`];
     const meas = meal[`strMeasure${i}`];
-    if (ing && String(ing).trim()) ingredients.push(`${ing}${meas?` ${meas}`:""}`.trim());
+    if (ing && String(ing).trim()) ingredients.push(`${ing}${meas ? ` ${meas}` : ""}`.trim());
   }
   const instructions = String(meal.strInstructions || meal.instructions || "")
-    .split(/\r?\n+/).map(s=>s.trim()).filter(Boolean);
+    .split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
   return { id, title, image, source, ingredients, instructions, area: meal.strArea || "", category: meal.strCategory || "" };
 }
 
@@ -60,7 +60,7 @@ export default function RecipeModal({ open, onClose, recipe }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e)=>e.stopPropagation()}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="modal-media">
@@ -89,7 +89,7 @@ export default function RecipeModal({ open, onClose, recipe }) {
             <div>
               <div className="modal-subtitle">Ingredients</div>
               <div className="chips">
-                {view.ingredients.map((s, i)=> <span key={`${i}-${s}`} className="chip">{s}</span>)}
+                {view.ingredients.map((s, i) => <span key={`${i}-${s}`} className="chip">{s}</span>)}
               </div>
             </div>
           ) : null}
@@ -98,9 +98,9 @@ export default function RecipeModal({ open, onClose, recipe }) {
             <div className="modal-subtitle">Instructions</div>
             <ol className="modal-instructions">
               {loading && !view.instructions.length
-                ? Array.from({length:6}).map((_,i)=><li key={i} className="skeleton" style={{height:14,borderRadius:6}}/>)
+                ? Array.from({ length: 6 }).map((_, i) => <li key={i} className="skeleton" style={{ height: 14, borderRadius: 6 }} />)
                 : view.instructions.length
-                  ? view.instructions.map((line,i)=><li key={i}>{line}</li>)
+                  ? view.instructions.map((line, i) => <li key={i}>{line}</li>)
                   : <li>No details provided for this recipe.</li>}
             </ol>
           </div>

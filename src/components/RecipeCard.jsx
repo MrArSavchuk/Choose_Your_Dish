@@ -1,5 +1,3 @@
-import React from "react";
-
 function resolveSource(recipe) {
   const s = recipe?.strSource || recipe?.source || "";
   const yt = recipe?.strYoutube || "";
