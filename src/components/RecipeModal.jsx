@@ -10,13 +10,10 @@ function toHttp(url) {
 function buildIngredients(recipe) {
   const list = [];
   for (let i = 1; i <= 20; i += 1) {
-    const name = recipe[`strIngredient${i}`];
-    const qty = recipe[`strMeasure${i}`];
-    if (name && name.trim()) {
-      const label = [name.trim(), qty && qty.trim() ? qty.trim() : ""]
-        .filter(Boolean)
-        .join(" ");
-      list.push(label);
+    const ing = recipe[`strIngredient${i}`];
+    const mea = recipe[`strMeasure${i}`];
+    if (ing && ing.trim()) {
+      list.push([ing.trim(), mea && mea.trim() ? mea.trim() : ""].filter(Boolean).join(" "));
     }
   }
   return list;
@@ -26,20 +23,24 @@ export default function RecipeModal({ recipe, onClose }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  if (!recipe) return null;
+
   const ingredients = useMemo(() => buildIngredients(recipe), [recipe]);
-  const sourceUrl =
-    toHttp(recipe.strSource) ||
-    (recipe.strYoutube ? `https://www.youtube.com/watch?v=${recipe.strYoutube.split("v=")[1] || ""}` : "");
+  const saved = isFavorite(recipe.idMeal);
 
   const steps = useMemo(() => {
-    const text = recipe.strInstructions || "";
-    return text
+    const raw = recipe.strInstructions || "";
+    return raw
       .split(/\r?\n+/)
       .map((s) => s.trim())
       .filter(Boolean);
   }, [recipe]);
 
-  const saved = isFavorite(recipe.idMeal);
+  const sourceUrl =
+    toHttp(recipe.strSource) ||
+    (recipe.strYoutube
+      ? `https://www.youtube.com/watch?v=${(recipe.strYoutube.split("v=")[1] || "").split("&")[0]}`
+      : "");
 
   return (
     <div className="modal-overlay" onClick={onClose} role="button" tabIndex={-1}>
@@ -50,9 +51,7 @@ export default function RecipeModal({ recipe, onClose }) {
         aria-modal="true"
         aria-labelledby="recipe-title"
       >
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
 
         <div className="modal-media">
           {!imgLoaded && <div className="img-skeleton" />}
@@ -66,16 +65,14 @@ export default function RecipeModal({ recipe, onClose }) {
         </div>
 
         <div className="modal-content">
-          <h2 id="recipe-title" className="modal-title">
-            {recipe.strMeal}
-          </h2>
+          <h2 id="recipe-title" className="modal-title">{recipe.strMeal}</h2>
 
           {ingredients.length > 0 && (
             <>
               <h3 className="modal-subtitle">Ingredients</h3>
               <div className="chips">
-                {ingredients.map((it, idx) => (
-                  <span className="chip" key={`${recipe.idMeal}-ing-${idx}`}>{it}</span>
+                {ingredients.map((v, i) => (
+                  <span className="chip" key={`ing-${recipe.idMeal}-${i}`}>{v}</span>
                 ))}
               </div>
             </>
@@ -86,7 +83,7 @@ export default function RecipeModal({ recipe, onClose }) {
               <h3 className="modal-subtitle">Instructions</h3>
               <ol className="modal-instructions">
                 {steps.map((line, i) => (
-                  <li key={`${recipe.idMeal}-step-${i}`}>{line}</li>
+                  <li key={`step-${recipe.idMeal}-${i}`}>{line}</li>
                 ))}
               </ol>
             </>
@@ -100,7 +97,7 @@ export default function RecipeModal({ recipe, onClose }) {
               {saved ? "Saved" : "Save"}
             </button>
 
-            {sourceUrl ? (
+            {sourceUrl && (
               <a
                 className="btn btn-ghost"
                 href={sourceUrl}
@@ -109,7 +106,7 @@ export default function RecipeModal({ recipe, onClose }) {
               >
                 Open source
               </a>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
