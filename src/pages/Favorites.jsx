@@ -1,34 +1,55 @@
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import RecipeCard from "../components/RecipeCard.jsx";
+import RecipeModal from "../components/RecipeModal.jsx";
 import { useFavorites } from "../context/FavoritesContext.jsx";
-import { randomRecipes } from "../services/api.js";
 
 export default function Favorites() {
-  const { favorites, clear } = useFavorites();
-  const [suggest, setSuggest] = useState(null);
+  const fav = useFavorites?.();
+  const items = fav?.items || [];
 
-  useEffect(() => { randomRecipes(1).then((x)=>setSuggest(x[0])); }, []);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [active, setActive] = useState(null);
+
+  const onOpen = (r) => {
+    setActive(r);
+    setModalOpen(true);
+  };
+  const onClose = () => {
+    setModalOpen(false);
+    setActive(null);
+  };
 
   return (
-    <section>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:24}}>
+    <main className="container">
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>Favorites</h1>
-        {favorites.length>0 && <button className="btn btn-soft" onClick={clear}>Clear all</button>}
+        {items.length ? (
+          <button className="btn btn-soft" onClick={() => fav?.clear?.()}>
+            Clear all
+          </button>
+        ) : null}
       </div>
 
-      <h2>You might like</h2>
-      <div style={{maxWidth:420}}>
-        {suggest ? <RecipeCard recipe={suggest} /> : <div className="card skeleton" style={{height:250}}/>}
-      </div>
-
-      <h2>Saved recipes</h2>
-      {favorites.length===0 ? (
-        <p style={{opacity:.7}}>No saved recipes yet.</p>
+      {!items.length ? (
+        <p>No saved recipes yet.</p>
       ) : (
-        <div className="grid grid-4">
-          {favorites.map((r)=> <RecipeCard key={r.id} recipe={r} />)}
+        <div className="grid grid-5">
+          {items.map((r) => {
+            const key = r.idMeal || r.id || r.strMeal;
+            return (
+              <RecipeCard
+                key={key}
+                recipe={r}
+                onOpen={onOpen}
+                onToggleSave={(x) => fav?.toggleFavorite?.(x)}
+                isSaved={true}
+              />
+            );
+          })}
         </div>
       )}
-    </section>
+
+      <RecipeModal open={modalOpen} onClose={onClose} recipe={active} />
+    </main>
   );
 }

@@ -1,45 +1,64 @@
-import { useState } from "react";
-import { useFavorites } from "../context/FavoritesContext.jsx";
-import RecipeModal from "./RecipeModal.jsx";
+import React from "react";
 
-export default function RecipeCard({ recipe }) {
-  const { isFavorite, add, remove } = useFavorites();
-  const fav = isFavorite(recipe.id);
-  const [open, setOpen] = useState(false);
+export default function RecipeCard({
+  recipe,
+  onOpen,
+  onToggleSave,
+  isSaved,
+}) {
+  if (!recipe) return null;
+
+  const openSource = () => {
+    const url =
+      recipe.strSource || recipe.source || recipe.strYoutube || recipe.url;
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const title = recipe.strMeal || recipe.title || "Untitled";
+  const img = recipe.strMealThumb || recipe.image || "";
+  const chips = [];
+  if (recipe.strArea) chips.push(recipe.strArea);
+  if (recipe.strCategory) chips.push(recipe.strCategory);
+  if (recipe.strTags) chips.push(...String(recipe.strTags).split(","));
 
   return (
-    <>
-      <article className="card recipe">
-        <button className="thumb" onClick={()=>setOpen(true)}>
-          <img src={recipe.image} alt={recipe.title} loading="lazy" />
-        </button>
+    <div className="card recipe">
+      <div
+        className="thumb"
+        onClick={() => onOpen?.(recipe)}
+        role="button"
+        title="Open details"
+      >
+        {img ? (
+          <img src={img} alt={title} loading="lazy" />
+        ) : (
+          <div className="skeleton" style={{ width: "100%", height: "100%" }} />
+        )}
+      </div>
 
-        <div className="recipe-title">{recipe.title}</div>
+      <div className="recipe-title">{title}</div>
 
-        <div className="chips">
-          {recipe.ingredients.slice(0,4).map((i,idx)=>(
-            <span key={idx} className="badge">{i}</span>
+      {chips.length ? (
+        <div className="chips" style={{ marginTop: 6 }}>
+          {chips.slice(0, 6).map((c, i) => (
+            <span key={`${c}-${i}`} className="badge">
+              {c}
+            </span>
           ))}
         </div>
+      ) : null}
 
-        <div className="actions">
-          {!fav ? (
-            <button className="btn btn-primary" style={{ flex:1 }} onClick={()=>add(recipe)}>Save</button>
-          ) : (
-            <button className="btn btn-soft" style={{ flex:1 }} onClick={()=>remove(recipe.id)}>Saved</button>
-          )}
-
-          {recipe.source ? (
-            <a className="btn btn-soft" style={{ flex:1 }} href={recipe.source} target="_blank" rel="noreferrer">Open</a>
-          ) : (
-            <button className="btn btn-soft" style={{ flex:1 }} onClick={()=>setOpen(true)}>Open</button>
-          )}
-        </div>
-      </article>
-
-      {open && (
-        <RecipeModal recipe={recipe} onClose={()=>setOpen(false)} onSave={()=>add(recipe)} />
-      )}
-    </>
+      <div className="actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => onToggleSave?.(recipe)}
+        >
+          {isSaved ? "Saved" : "Save"}
+        </button>
+        <button className="btn btn-soft" onClick={openSource}>
+          Open
+        </button>
+      </div>
+    </div>
   );
 }
